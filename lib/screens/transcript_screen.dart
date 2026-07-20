@@ -1,247 +1,243 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../providers/transcript_provider.dart';
+import '../models/transcript_model.dart';
 
-class TranscriptScreen extends StatelessWidget {
+class TranscriptScreen extends StatefulWidget {
   const TranscriptScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    final semesters = [
-      _SemesterData(
-        semester: 5,
-        gpa: '0.00',
-        courses: [
-          _CourseData('Atmospheric Thermodynamics', 3, null),
-          _CourseData('Electrostatic', 3, null),
-          _CourseData('Fluid Mechanics', 3, null),
-          _CourseData('Human Computer Interaction', 3, null),
-          _CourseData('Integrated Practicum II', 2, null),
-          _CourseData('Optics and Photonics', 3, null),
-          _CourseData('Ordinary Differential Equations', 3, null),
-        ],
-      ),
-      _SemesterData(
-        semester: 4,
-        gpa: '4.00',
-        courses: [
-          _CourseData('Analog Electronics', 2, 'A'),
-          _CourseData('Integrated Practicum I', 2, 'A'),
-          _CourseData('Lagrange-Hamilton Mechanics', 3, 'A'),
-          _CourseData('Linear Algebra', 3, 'A'),
-          _CourseData('Newtonian Mechanics', 3, 'A'),
-          _CourseData('Thermodynamics', 3, 'A'),
-          _CourseData('Waves and Vibration', 3, 'A'),
-        ],
-      ),
-      _SemesterData(
-        semester: 3,
-        gpa: '4.00',
-        courses: [
-          _CourseData('Biophysics', 3, 'A'),
-          _CourseData('Calculus II', 3, 'A'),
-          _CourseData('Mathematical Physics II', 3, 'A'),
-          _CourseData('Method of Collecting Data', 3, 'A'),
-          _CourseData('Physics Practicum II', 2, 'A'),
-          _CourseData('Regression Analysis', 3, 'A'),
-        ],
-      ),
-      _SemesterData(
-        semester: 2,
-        gpa: '4.00',
-        courses: [
-          _CourseData('Calculus I', 3, 'A'),
-          _CourseData('Citizenship', 2, 'A'),
-          _CourseData('Indonesian Languange', 2, 'A'),
-          _CourseData('Mathematical Physics I', 3, 'A'),
-          _CourseData('Pancasila', 2, 'A'),
-          _CourseData('Physics Practicum I', 2, 'A'),
-          _CourseData('Statistics', 3, 'A'),
-        ],
-      ),
-      _SemesterData(
-        semester: 1,
-        gpa: '4.00',
-        courses: [
-          _CourseData('Biology', 3, 'A'),
-          _CourseData('Chemistry', 2, 'A'),
-          _CourseData('English Languange', 2, 'A'),
-          _CourseData('Mathematical Logic', 3, 'A'),
-          _CourseData('Physics', 3, 'A'),
-          _CourseData('Religion', 2, 'A'),
-        ],
-      ),
-    ];
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFD6E9F8),
-      body: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: SystemUiOverlayStyle.dark,
-        child: SafeArea(
-          child: Column(
-            children: [
-              // App bar
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back_ios, size: 20, color: Colors.black87),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    const Text(
-                      'Transcript',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
-                    ),
-                  ],
-                ),
-              ),
-
-              // List
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                  itemCount: semesters.length,
-                  itemBuilder: (context, index) {
-                    return _SemesterCard(data: semesters[index]);
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  State<TranscriptScreen> createState() => _TranscriptScreenState();
 }
 
-// ===== SEMESTER CARD =====
-
-class _SemesterCard extends StatelessWidget {
-  final _SemesterData data;
-  const _SemesterCard({required this.data});
+class _TranscriptScreenState extends State<TranscriptScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<TranscriptProvider>(context, listen: false).loadTranscript();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final totalCredits = data.courses.fold<int>(0, (sum, c) => sum + c.credits);
+    return Scaffold(
+      backgroundColor: const Color(0xFFEDEDED),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text('Transcript', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
+      ),
+      body: Consumer<TranscriptProvider>(
+        builder: (context, provider, _) {
+          if (provider.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
+          if (provider.transcript == null) {
+            return const Center(
+              child: Text('No transcript data', style: TextStyle(color: Colors.black54)),
+            );
+          }
+
+          final transcript = provider.transcript!;
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                // GPA Summary Card
+                _buildGpaSummaryCard(transcript),
+                const SizedBox(height: 16),
+                // Semester list
+                ...transcript.semesters.map((s) => _buildSemesterCard(s)),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildGpaSummaryCard(TranscriptModel transcript) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF4097FC),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Cumulative GPA', style: TextStyle(color: Colors.white70, fontSize: 13)),
+          const SizedBox(height: 4),
+          Text(
+            transcript.cumulativeGpa.toStringAsFixed(2),
+            style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              _buildGpaStatItem('${transcript.totalCredits}', 'Credits Earned'),
+              const SizedBox(width: 32),
+              _buildGpaStatItem('${transcript.semesters.length}', 'Semesters'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGpaStatItem(String value, String label) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header row
-        Padding(
-          padding: const EdgeInsets.only(top: 20, bottom: 8),
-          child: Row(
+        Text(value, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600)),
+        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+      ],
+    );
+  }
+
+  Widget _buildSemesterCard(SemesterModel semester) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(blurRadius: 8, color: Colors.black.withOpacity(0.05), offset: const Offset(0, 2))],
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          title: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Semester ${data.semester}',
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.black),
-              ),
-              Row(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Semester GPA: ${data.gpa}',
-                    style: const TextStyle(fontSize: 12, color: Colors.black54),
+                    '${semester.semester} ${semester.academicYear}',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                   ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Downloading Semester ${data.semester} transcript...'),
-                          duration: const Duration(seconds: 2),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    },
-                    child: const Icon(Icons.download, size: 20, color: Color(0xFF4097FC)),
+                  Text(
+                    '${semester.semesterCredits} Credits',
+                    style: const TextStyle(fontSize: 12, color: Colors.black54),
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
-
-        // Card
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: const Color(0xFFF2F2F2),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Column(
-            children: [
-              ...data.courses.asMap().entries.map((entry) {
-                final i = entry.key;
-                final course = entry.value;
-                final isLast = i == data.courses.length - 1;
-                return Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(course.name,
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black)),
-                          const SizedBox(height: 2),
-                          Text('Credits: ${course.credits}',
-                              style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                          const SizedBox(height: 1),
-                          Row(
-                            children: [
-                              const Text('Grade: ', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                              Text(
-                                course.grade ?? '-',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: course.grade != null ? const Color(0xFF2E7D32) : Colors.black54,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (!isLast)
-                      const Divider(height: 1, indent: 14, endIndent: 14, color: Color(0xFFDDDDDD)),
-                  ],
-                );
-              }),
-
-              // Total credits
-              const Divider(height: 1, color: Color(0xFFDDDDDD)),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Total credits: $totalCredits',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
-                  ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4097FC).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF4097FC)),
+                ),
+                child: Text(
+                  'GPA ${semester.semesterGpa.toStringAsFixed(2)}',
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF4097FC)),
                 ),
               ),
             ],
           ),
+          children: [
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+            // Header
+            Row(
+              children: const [
+                Expanded(flex: 3, child: Text('Course', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.black54))),
+                SizedBox(width: 8),
+                SizedBox(width: 32, child: Text('SKS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.black54), textAlign: TextAlign.center)),
+                SizedBox(width: 8),
+                SizedBox(width: 32, child: Text('Grade', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.black54), textAlign: TextAlign.center)),
+                SizedBox(width: 8),
+                SizedBox(width: 32, child: Text('Point', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.black54), textAlign: TextAlign.center)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ...semester.courses.map((c) => _buildCourseRow(c)),
+          ],
         ),
-      ],
+      ),
     );
   }
-}
 
-// ===== DATA MODELS =====
+  Widget _buildCourseRow(CourseGradeModel course) {
+    final gradeColor = _getGradeColor(course.letterGrade);
 
-class _SemesterData {
-  final int semester;
-  final String gpa;
-  final List<_CourseData> courses;
-  _SemesterData({required this.semester, required this.gpa, required this.courses});
-}
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(course.courseName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                Text('${course.courseCode} - ${course.classCode}', style: const TextStyle(fontSize: 11, color: Colors.black45)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 32,
+            child: Text('${course.credits}', style: const TextStyle(fontSize: 13), textAlign: TextAlign.center),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 32,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              decoration: BoxDecoration(
+                color: gradeColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                course.letterGrade,
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: gradeColor),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 32,
+            child: Text(
+              course.gradePoint.toStringAsFixed(1),
+              style: const TextStyle(fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-class _CourseData {
-  final String name;
-  final int credits;
-  final String? grade;
-  _CourseData(this.name, this.credits, this.grade);
+  Color _getGradeColor(String grade) {
+    switch (grade) {
+      case 'A':
+      case 'A-':
+        return Colors.green;
+      case 'B+':
+      case 'B':
+      case 'B-':
+        return Colors.blue;
+      case 'C+':
+      case 'C':
+      case 'C-':
+        return Colors.orange;
+      case 'D':
+        return Colors.deepOrange;
+      default:
+        return Colors.red;
+    }
+  }
 }

@@ -93,4 +93,17 @@ class AttendanceProvider extends ChangeNotifier {
     _successMessage = null;
     notifyListeners();
   }
+
+  List<AttendanceSessionModel> _sessions = [];
+  List<AttendanceSessionModel> get sessions => _sessions;
+
+  Future<void> loadSessionsByOffering(int offeringId) async {
+    try {
+      _sessions = await _service.getSessionsByOffering(offeringId);
+      notifyListeners();
+    } catch (e) {
+      _sessions = [];
+      notifyListeners();
+    }
+  }
 }
