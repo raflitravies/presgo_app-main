@@ -9,6 +9,7 @@ import 'screens/splash_screen.dart';
 import 'providers/transcript_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/advisor_provider.dart';
+import 'providers/evaluation_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,6 +34,7 @@ class PresGOApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TranscriptProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => AdvisorProvider()),
+        ChangeNotifierProvider(create: (_) => EvaluationProvider()),
       ],
       child: MaterialApp(
         title: 'PresGO',
