@@ -13,6 +13,7 @@ import 'providers/evaluation_provider.dart';
 import 'providers/announcement_provider.dart';
 import 'providers/event_provider.dart';
 import 'providers/profile_provider.dart';
+import 'providers/lecturer_attendance_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,6 +42,7 @@ class PresGOApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AnnouncementProvider()),
         ChangeNotifierProvider(create: (_) => EventProvider()),
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
+        ChangeNotifierProvider(create: (_) => LecturerAttendanceProvider()),
       ],
       child: MaterialApp(
         title: 'PresGO',

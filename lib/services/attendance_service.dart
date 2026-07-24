@@ -64,4 +64,9 @@ class AttendanceService {
         .map((r) => AttendanceRecordModel.fromJson(r))
         .toList();
   }
+
+  Future<List<dynamic>> getMyTeachingOfferings() async {
+    final response = await _api.get('/courses/offerings/my-teaching');
+    return response['data'] as List;
+  }
 }
