@@ -363,7 +363,9 @@ class _LecturerHomeScreenState extends State<LecturerHomeScreen> {
           final selected = _selectedIndex == index;
           return GestureDetector(
             onTap: () {
-              if (index == 1) {
+              if (index == 0) {
+                setState(() => _selectedIndex = 0);
+              } else if (index == 1) {
                 Navigator.push(context, PageRouteBuilder(
                   transitionDuration: Duration.zero,
                   reverseTransitionDuration: Duration.zero,
@@ -381,8 +383,6 @@ class _LecturerHomeScreenState extends State<LecturerHomeScreen> {
                   reverseTransitionDuration: Duration.zero,
                   pageBuilder: (_, __, ___) => const AnnouncementScreen(),
                 ));
-              } else {
-                setState(() => _selectedIndex = index);
               }
             },
             child: Icon(icons[index],

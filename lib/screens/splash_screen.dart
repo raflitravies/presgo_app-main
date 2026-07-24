@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'login_screen.dart';
 import 'home_screen.dart';
+import 'lecturer_home_screen.dart';
+import 'admin_dashboard_screen.dart';
+import 'staff_dashboard_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -28,9 +31,26 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     if (authProvider.isLoggedIn) {
+      final user = authProvider.user!;
+      Widget destination;
+
+      switch (user.role) {
+        case 'ADMIN':
+          destination = const AdminDashboardScreen();
+          break;
+        case 'STAFF':
+          destination = const StaffDashboardScreen();
+          break;
+        case 'LECTURER':
+          destination = const LecturerHomeScreen();
+          break;
+        default:
+          destination = const HomeScreen();
+      }
+
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => destination),
       );
     } else {
       Navigator.pushReplacement(
