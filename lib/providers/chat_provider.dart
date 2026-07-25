@@ -54,18 +54,26 @@ class ChatProvider extends ChangeNotifier {
     try {
       final message = await _service.sendMessage(roomId, content);
       _messages.add(message);
-      // Update last message di room list
+
+      // Update last message di room list sekaligus mempertahankan unreadCount
       final roomIndex = _rooms.indexWhere((r) => r.id == roomId);
       if (roomIndex != -1) {
+        final currentRoom = _rooms[roomIndex];
         _rooms[roomIndex] = ChatRoomModel(
-          id: _rooms[roomIndex].id,
-          type: _rooms[roomIndex].type,
-          name: _rooms[roomIndex].name,
-          offeringId: _rooms[roomIndex].offeringId,
+          id: currentRoom.id,
+          type: currentRoom.type,
+          name: currentRoom.name,
+          offeringId: currentRoom.offeringId,
           lastMessage: content,
           lastMessageAt: message.createdAt,
+          unreadCount: currentRoom.unreadCount, // Pertahankan nilai unreadCount
         );
+
+        // Geser room yang baru di-chat ke urutan paling atas secara lokal
+        final updatedRoom = _rooms.removeAt(roomIndex);
+        _rooms.insert(0, updatedRoom);
       }
+
       _isSending = false;
       notifyListeners();
       return true;

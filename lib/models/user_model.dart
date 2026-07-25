@@ -21,6 +21,28 @@ class UserModel {
     required this.isFirstLogin,
   });
 
+  UserModel copyWith({
+    int? id,
+    String? nimNip,
+    String? fullName,
+    String? email,
+    String? role,
+    bool? isFirstLogin,
+    bool? isActive,
+    String? photoUrl,
+  }) {
+    return UserModel(
+      id: id ?? this.id,
+      nimNip: nimNip ?? this.nimNip,
+      fullName: fullName ?? this.fullName,
+      email: email ?? this.email,
+      role: role ?? this.role,
+      isFirstLogin: isFirstLogin ?? this.isFirstLogin,
+      isActive: isActive ?? this.isActive,
+      photoUrl: photoUrl ?? this.photoUrl,
+    );
+  }
+
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       id: json['userId'] ?? json['id'],

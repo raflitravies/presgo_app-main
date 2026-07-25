@@ -19,6 +19,22 @@ class AttendanceService {
         .toList();
   }
 
+  // 💡 DIFIX: Mengembalikan List<AttendanceSessionModel> untuk kebutuhan dropdown sesi aktif
+  Future<List<AttendanceSessionModel>> getActiveSessionsByOffering(int offeringId) async {
+    try {
+      final response = await _api.get('/attendance/offering/$offeringId/active');
+      if (response['data'] != null) {
+        return (response['data'] as List)
+            .map((s) => AttendanceSessionModel.fromJson(s))
+            .toList();
+      }
+    } catch (e) {
+      // Jika 400/404 atau tidak ada sesi BUKA (isOpen = true)
+      return [];
+    }
+    return [];
+  }
+
   Future<AttendanceRecordModel> checkInWithPin(int sessionId, String pin) async {
     final response = await _api.post('/attendance/check-in/pin', {
       'sessionId': sessionId,

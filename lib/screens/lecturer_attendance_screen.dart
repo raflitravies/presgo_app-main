@@ -73,7 +73,7 @@ class _LecturerAttendanceScreenState extends State<LecturerAttendanceScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(blurRadius: 8, color: Colors.black.withOpacity(0.05))],
+          boxShadow: [BoxShadow(blurRadius: 8, color: Colors.black.withValues(alpha: 0.05))],
         ),
         child: Row(
           children: [
@@ -81,7 +81,7 @@ class _LecturerAttendanceScreenState extends State<LecturerAttendanceScreen> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: const Color(0xFF4097FC).withOpacity(0.1),
+                color: const Color(0xFF4097FC).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.fact_check, color: Color(0xFF4097FC), size: 24),
@@ -135,11 +135,9 @@ class _LecturerSessionsScreenState extends State<LecturerSessionsScreen> {
   void _showCreateSessionDialog() {
     final topicController = TextEditingController();
     DateTime selectedDate = DateTime.now();
-    int weekNumber = 1;
 
     final provider = Provider.of<LecturerAttendanceProvider>(context, listen: false);
-    // Auto set week number
-    weekNumber = provider.sessions.length + 1;
+    int weekNumber = provider.sessions.length + 1;
 
     showDialog(
       context: context,
@@ -151,7 +149,6 @@ class _LecturerSessionsScreenState extends State<LecturerSessionsScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Week number
               Row(
                 children: [
                   const Text('Week: ', style: TextStyle(fontWeight: FontWeight.w500)),
@@ -159,7 +156,6 @@ class _LecturerSessionsScreenState extends State<LecturerSessionsScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              // Date picker
               GestureDetector(
                 onTap: () async {
                   final date = await showDatePicker(
@@ -189,7 +185,6 @@ class _LecturerSessionsScreenState extends State<LecturerSessionsScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              // Topic
               TextField(
                 controller: topicController,
                 decoration: InputDecoration(
@@ -222,13 +217,17 @@ class _LecturerSessionsScreenState extends State<LecturerSessionsScreen> {
                         : topicController.text.trim(),
                   );
                   if (!mounted) return;
+
+                  // 💡 FIX SAFE ACCESS: Cek list agar tidak crash/error
+                  final createdPin = prov.sessions.isNotEmpty ? prov.sessions.first.pin : null;
+
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(success
-                          ? 'Session opened! PIN: ${prov.sessions.first.pin}'
-                          : prov.errorMessage ?? 'Failed'),
+                          ? 'Session opened successfully! ${createdPin != null ? 'PIN: $createdPin' : ''}'
+                          : prov.errorMessage ?? 'Failed to open session'),
                       backgroundColor: success ? Colors.green : Colors.red,
-                      duration: const Duration(seconds: 5),
+                      duration: const Duration(seconds: 4),
                     ),
                   );
                 },
@@ -278,10 +277,10 @@ class _LecturerSessionsScreenState extends State<LecturerSessionsScreen> {
           }
 
           if (provider.sessions.isEmpty) {
-            return Center(
+            return const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
+                children: [
                   Icon(Icons.fact_check_outlined, size: 64, color: Colors.black26),
                   SizedBox(height: 16),
                   Text('No sessions yet', style: TextStyle(color: Colors.black54)),
@@ -325,8 +324,8 @@ class _LecturerSessionsScreenState extends State<LecturerSessionsScreen> {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: session.isOpen
-                ? Colors.green.withOpacity(0.5)
-                : Colors.grey.withOpacity(0.3),
+                ? Colors.green.withValues(alpha: 0.5)
+                : Colors.grey.withValues(alpha: 0.3),
           ),
         ),
         child: Row(
@@ -336,8 +335,8 @@ class _LecturerSessionsScreenState extends State<LecturerSessionsScreen> {
               height: 44,
               decoration: BoxDecoration(
                 color: session.isOpen
-                    ? Colors.green.withOpacity(0.1)
-                    : Colors.grey.withOpacity(0.1),
+                    ? Colors.green.withValues(alpha: 0.1)
+                    : Colors.grey.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -375,8 +374,8 @@ class _LecturerSessionsScreenState extends State<LecturerSessionsScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: session.isOpen
-                        ? Colors.green.withOpacity(0.1)
-                        : Colors.grey.withOpacity(0.1),
+                        ? Colors.green.withValues(alpha: 0.1)
+                        : Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: session.isOpen ? Colors.green : Colors.grey,
@@ -453,7 +452,7 @@ class _LecturerSessionDetailScreenState
             Container(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
               decoration: BoxDecoration(
-                color: const Color(0xFF4097FC).withOpacity(0.1),
+                color: const Color(0xFF4097FC).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFF4097FC)),
               ),
@@ -499,7 +498,6 @@ class _LecturerSessionDetailScreenState
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Status selector
               ...statuses.map((status) => RadioListTile<String>(
                 title: Text(status),
                 value: status,
@@ -589,7 +587,6 @@ class _LecturerSessionDetailScreenState
 
           return Column(
             children: [
-              // Session info card
               Container(
                 margin: const EdgeInsets.all(16),
                 padding: const EdgeInsets.all(16),
@@ -607,7 +604,6 @@ class _LecturerSessionDetailScreenState
                   ],
                 ),
               ),
-              // Close session button
               if (_session.isOpen)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -649,7 +645,6 @@ class _LecturerSessionDetailScreenState
                   ),
                 ),
               const SizedBox(height: 8),
-              // Records list
               Expanded(
                 child: provider.records.isEmpty
                     ? const Center(child: Text('No students found', style: TextStyle(color: Colors.black54)))
@@ -709,13 +704,13 @@ class _LecturerSessionDetailScreenState
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: statusColor.withOpacity(0.3)),
+          border: Border.all(color: statusColor.withValues(alpha: 0.3)),
         ),
         child: Row(
           children: [
             CircleAvatar(
               radius: 18,
-              backgroundColor: statusColor.withOpacity(0.1),
+              backgroundColor: statusColor.withValues(alpha: 0.1),
               child: Icon(statusIcon, color: statusColor, size: 18),
             ),
             const SizedBox(width: 12),
@@ -733,7 +728,7 @@ class _LecturerSessionDetailScreenState
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
+                color: statusColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: statusColor),
               ),

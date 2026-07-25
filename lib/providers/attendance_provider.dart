@@ -19,6 +19,8 @@ class AttendanceProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   String? get successMessage => _successMessage;
 
+  // ===== STUDENT SUMMARY & RECORDS =====
+
   Future<void> loadMySummary() async {
     _isLoading = true;
     _errorMessage = null;
@@ -48,6 +50,18 @@ class AttendanceProvider extends ChangeNotifier {
     }
   }
 
+  // 💡 DIFIX: Mengembalikan List<AttendanceSessionModel> untuk Dropdown
+  Future<List<AttendanceSessionModel>> getActiveSessionsByOffering(int offeringId) async {
+    try {
+      return await _service.getActiveSessionsByOffering(offeringId);
+    } catch (e) {
+      _errorMessage = e.toString();
+      return [];
+    }
+  }
+
+  // ===== CHECK-IN ACTIONS =====
+
   Future<bool> checkInWithPin(int sessionId, String pin) async {
     _isChecking = true;
     _errorMessage = null;
@@ -55,10 +69,19 @@ class AttendanceProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _service.checkInWithPin(sessionId, pin);
+      final updatedRecord = await _service.checkInWithPin(sessionId, pin);
+
+      // Update record lokal secara instan
+      final index = _records.indexWhere((r) => r.sessionId == sessionId);
+      if (index != -1) {
+        _records[index] = updatedRecord;
+      } else {
+        _records.add(updatedRecord);
+      }
+
       _successMessage = 'Check-in successful!';
       _isChecking = false;
-      notifyListeners();
+      notifyListeners(); // Memicu re-build UI
       return true;
     } catch (e) {
       _errorMessage = e.toString();
@@ -92,18 +115,5 @@ class AttendanceProvider extends ChangeNotifier {
     _errorMessage = null;
     _successMessage = null;
     notifyListeners();
-  }
-
-  List<AttendanceSessionModel> _sessions = [];
-  List<AttendanceSessionModel> get sessions => _sessions;
-
-  Future<void> loadSessionsByOffering(int offeringId) async {
-    try {
-      _sessions = await _service.getSessionsByOffering(offeringId);
-      notifyListeners();
-    } catch (e) {
-      _sessions = [];
-      notifyListeners();
-    }
   }
 }

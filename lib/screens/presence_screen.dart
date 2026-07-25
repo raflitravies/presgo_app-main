@@ -69,7 +69,13 @@ class _PresenceScreenState extends State<PresenceScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(blurRadius: 8, color: Colors.black.withOpacity(0.05), offset: const Offset(0, 2))],
+          boxShadow: [
+            BoxShadow(
+              blurRadius: 8,
+              color: Colors.black.withValues(alpha: 0.05),
+              offset: const Offset(0, 2),
+            )
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,7 +128,7 @@ class _PresenceScreenState extends State<PresenceScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color, width: 1.5),
       ),
@@ -152,7 +158,7 @@ class _PresenceScreenState extends State<PresenceScreen> {
 }
 
 // ===================================================================
-// DETAIL SCREEN
+// DETAIL SCREEN (REACTIVE REAL-TIME UPDATE)
 // ===================================================================
 
 class CoursePresenceDetailScreen extends StatefulWidget {
@@ -170,19 +176,30 @@ class _CoursePresenceDetailScreenState extends State<CoursePresenceDetailScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = Provider.of<AttendanceProvider>(context, listen: false);
       provider.loadMyRecordsByOffering(widget.summary.offeringId);
-      provider.loadSessionsByOffering(widget.summary.offeringId);
+      provider.loadMySummary(); // Pastikan summary juga ter-fetch
     });
   }
 
-  void _showCheckInDialog() {
+  void _showCheckInDialog() async {
     final pinController = TextEditingController();
     final provider = Provider.of<AttendanceProvider>(context, listen: false);
 
-    // Hanya session yang masih open
-    final openSessions = provider.sessions.where((s) => s.isOpen).toList();
+    // 1. Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
 
-    AttendanceSessionModel? selectedSession;
+    // 2. Fetch list sesi aktif
+    final activeSessions = await provider.getActiveSessionsByOffering(widget.summary.offeringId);
 
+    if (!mounted) return;
+    Navigator.pop(context); // Close loading
+
+    AttendanceSessionModel? selectedSession = activeSessions.isNotEmpty ? activeSessions.first : null;
+
+    // 3. Tampilkan Dialog
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -195,14 +212,13 @@ class _CoursePresenceDetailScreenState extends State<CoursePresenceDetailScreen>
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Kalau tidak ada session yang open
-              if (openSessions.isEmpty)
+              if (activeSessions.isEmpty)
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
+                    color: Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.withOpacity(0.3)),
+                    border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                   ),
                   child: const Row(
                     children: [
@@ -218,27 +234,36 @@ class _CoursePresenceDetailScreenState extends State<CoursePresenceDetailScreen>
                   ),
                 )
               else ...[
-                // Dropdown hanya session yang open
+                // Dropdown untuk milih sesi (kalau >1 sesi buka)
                 DropdownButtonFormField<AttendanceSessionModel>(
+                  value: selectedSession,
                   decoration: InputDecoration(
-                    labelText: 'Session',
+                    labelText: 'Select Session',
+                    prefixIcon: const Icon(Icons.event_available, color: Color(0xFF4097FC), size: 20),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
-                  hint: const Text('Select Session'),
-                  value: selectedSession,
-                  items: openSessions.map((s) => DropdownMenuItem(
-                    value: s,
-                    child: Text('Week ${s.weekNumber}${s.topic != null ? ' - ${s.topic}' : ''}'),
-                  )).toList(),
-                  onChanged: (v) => setDialogState(() => selectedSession = v),
+                  items: activeSessions.map((session) {
+                    return DropdownMenuItem<AttendanceSessionModel>(
+                      value: session,
+                      child: Text(
+                        'Week ${session.weekNumber}${session.topic != null ? ' - ${session.topic}' : ''}',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    setDialogState(() {
+                      selectedSession = val;
+                    });
+                  },
                 ),
                 const SizedBox(height: 12),
-                // PIN field
                 TextField(
                   controller: pinController,
                   keyboardType: TextInputType.number,
                   maxLength: 6,
+                  autofocus: true,
                   decoration: InputDecoration(
                     labelText: 'Enter PIN',
                     hintText: '6-digit PIN from lecturer',
@@ -255,7 +280,7 @@ class _CoursePresenceDetailScreenState extends State<CoursePresenceDetailScreen>
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Cancel'),
             ),
-            if (openSessions.isNotEmpty)
+            if (activeSessions.isNotEmpty)
               Consumer<AttendanceProvider>(
                 builder: (context, prov, _) => ElevatedButton(
                   onPressed: prov.isChecking
@@ -292,9 +317,10 @@ class _CoursePresenceDetailScreenState extends State<CoursePresenceDetailScreen>
                       ),
                     );
 
+                    // Trigger re-fetch otomatis agar data real-time ter-update
                     if (success) {
-                      prov.loadMyRecordsByOffering(widget.summary.offeringId);
-                      prov.loadMySummary();
+                      await prov.loadMyRecordsByOffering(widget.summary.offeringId);
+                      await prov.loadMySummary();
                     }
                   },
                   style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4097FC)),
@@ -344,9 +370,15 @@ class _CoursePresenceDetailScreenState extends State<CoursePresenceDetailScreen>
             return const Center(child: CircularProgressIndicator());
           }
 
+          // 💡 AMBIL SUMMARY SECARA DINAMIS DARI PROVIDER BIAR LANGSUNG BERUBAH REAL-TIME
+          final currentSummary = provider.summary.firstWhere(
+                (s) => s.offeringId == widget.summary.offeringId,
+            orElse: () => widget.summary,
+          );
+
           return Column(
             children: [
-              // Summary card
+              // Dynamic Header Summary Card
               Container(
                 margin: const EdgeInsets.all(16),
                 padding: const EdgeInsets.all(16),
@@ -357,14 +389,13 @@ class _CoursePresenceDetailScreenState extends State<CoursePresenceDetailScreen>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildSummaryItem('${widget.summary.totalSessions}', 'Sessions', Icons.calendar_today),
-                    _buildSummaryItem('${widget.summary.totalPresent}', 'Present', Icons.check_circle),
-                    _buildSummaryItem('${widget.summary.totalAbsent}', 'Absent', Icons.cancel),
-                    _buildSummaryItem('${widget.summary.attendancePercentage.toStringAsFixed(0)}%', 'Rate', Icons.percent),
+                    _buildSummaryItem('${currentSummary.totalSessions}', 'Sessions', Icons.calendar_today),
+                    _buildSummaryItem('${currentSummary.totalPresent}', 'Present', Icons.check_circle),
+                    _buildSummaryItem('${currentSummary.totalAbsent}', 'Absent', Icons.cancel),
+                    _buildSummaryItem('${currentSummary.attendancePercentage.toStringAsFixed(0)}%', 'Rate', Icons.percent),
                   ],
                 ),
               ),
-              // Records list
               Expanded(
                 child: provider.records.isEmpty
                     ? const Center(
@@ -430,7 +461,7 @@ class _CoursePresenceDetailScreenState extends State<CoursePresenceDetailScreen>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: statusColor.withOpacity(0.3), width: 1),
+        border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 1),
       ),
       child: Row(
         children: [
@@ -438,7 +469,7 @@ class _CoursePresenceDetailScreenState extends State<CoursePresenceDetailScreen>
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
+              color: statusColor.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(statusIcon, color: statusColor, size: 18),
@@ -451,7 +482,7 @@ class _CoursePresenceDetailScreenState extends State<CoursePresenceDetailScreen>
                 Text('Week ${r.weekNumber}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 if (r.checkedAt != null)
                   Text(
-                    'Checked at: ${r.checkedAt!.substring(11, 16)}',
+                    'Checked at: ${r.checkedAt!.length >= 16 ? r.checkedAt!.substring(11, 16) : r.checkedAt!}',
                     style: const TextStyle(fontSize: 11, color: Colors.black54),
                   ),
                 if (r.note != null && r.note!.isNotEmpty)
@@ -462,7 +493,7 @@ class _CoursePresenceDetailScreenState extends State<CoursePresenceDetailScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
+              color: statusColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: statusColor),
             ),

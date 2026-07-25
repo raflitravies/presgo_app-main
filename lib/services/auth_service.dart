@@ -15,14 +15,39 @@ class AuthService {
     );
 
     final data = response['data'];
-    final prefs = await SharedPreferences.getInstance();
-
-    // Simpan token
-    await prefs.setString(AppConstants.tokenKey, data['token']);
-    await prefs.setString(AppConstants.refreshTokenKey, data['refreshToken']);
-    await prefs.setString(AppConstants.userKey, jsonEncode(data));
+    await _saveAuthData(data);
 
     return UserModel.fromJson(data);
+  }
+
+  Future<UserModel> changePassword(String oldPassword, String newPassword) async {
+    final response = await _api.post('/auth/change-password', {
+      'oldPassword': oldPassword,
+      'newPassword': newPassword,
+    });
+
+    final prefs = await SharedPreferences.getInstance();
+    final userStr = prefs.getString(AppConstants.userKey);
+
+    Map<String, dynamic> userData = {};
+
+    if (userStr != null) {
+      userData = jsonDecode(userStr) as Map<String, dynamic>;
+    }
+
+    // Jika backend mengirimkan Map data baru, gunakan data tersebut
+    if (response != null && response['data'] != null && response['data'] is Map<String, dynamic>) {
+      userData = Map<String, dynamic>.from(response['data'] as Map);
+    }
+
+    // Paksa update status first login di Map lokal
+    userData['isFirstLogin'] = false;
+    userData['firstLogin'] = false;
+
+    // Simpan data user & token baru jika ada
+    await _saveAuthData(userData);
+
+    return UserModel.fromJson(userData);
   }
 
   Future<void> logout() async {
@@ -44,20 +69,16 @@ class AuthService {
     return prefs.containsKey(AppConstants.tokenKey);
   }
 
-  Future<void> changePassword(String oldPassword, String newPassword) async {
-    await _api.post('/auth/change-password', {
-      'oldPassword': oldPassword,
-      'newPassword': newPassword,
-    });
-  }
-
-  Future<void> updateFirstLoginStatus() async {
+  Future<void> _saveAuthData(Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
-    final userStr = prefs.getString(AppConstants.userKey);
-    if (userStr == null) return;
 
-    final userData = jsonDecode(userStr) as Map<String, dynamic>;
-    userData['firstLogin'] = false;
-    await prefs.setString(AppConstants.userKey, jsonEncode(userData));
+    if (data['token'] != null) {
+      await prefs.setString(AppConstants.tokenKey, data['token'].toString());
+    }
+    if (data['refreshToken'] != null) {
+      await prefs.setString(AppConstants.refreshTokenKey, data['refreshToken'].toString());
+    }
+
+    await prefs.setString(AppConstants.userKey, jsonEncode(data));
   }
 }

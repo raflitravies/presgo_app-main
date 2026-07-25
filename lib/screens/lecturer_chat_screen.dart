@@ -4,23 +4,21 @@ import '../core/network/api_client.dart';
 import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../models/chat_model.dart';
+import 'lecturer_home_screen.dart';
+import 'lecturer_schedule_screen.dart';
+import 'lecturer_announcement_screen.dart';
 
-// Import screen lain untuk navigasi bottom bar
-import 'home_screen.dart';
-import 'schedule_screen.dart';
-import 'announcement_screen.dart';
-
-class ChatScreen extends StatefulWidget {
-  const ChatScreen({Key? key}) : super(key: key);
+class LecturerChatScreen extends StatefulWidget {
+  const LecturerChatScreen({Key? key}) : super(key: key);
 
   @override
-  State<ChatScreen> createState() => _ChatScreenState();
+  State<LecturerChatScreen> createState() => _LecturerChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _LecturerChatScreenState extends State<LecturerChatScreen> {
   final TextEditingController _searchController = TextEditingController();
-  final int _selectedIndex = 3; // Index 3 untuk tab Chat
-  final ApiClient _api = ApiClient(); // Instance untuk hit markAsRead
+  final int _selectedIndex = 3;
+  final ApiClient _api = ApiClient();
 
   @override
   void initState() {
@@ -42,7 +40,7 @@ class _ChatScreenState extends State<ChatScreen> {
       backgroundColor: const Color(0xffF8F9FA),
       body: Stack(
         children: [
-          // Background Gradient khas PresGO
+
           Container(
             height: 220,
             decoration: const BoxDecoration(
@@ -129,18 +127,18 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       ),
 
-      // MENAMBAHKAN BOTTOM NAVIGATION BAR SAMA SEPERTI DI HOME_SCREEN
+      // MENAMBAHKAN BOTTOM NAVIGATION BAR KHUSUS LECTURER
       bottomNavigationBar: _buildBottomNav(),
     );
   }
 
   Widget _buildChatItem(ChatRoomModel room) {
     final isGroup = room.type == 'GROUP_COURSE';
-    final hasUnread = room.unreadCount > 0; // 💡 Cek apakah ada pesan belum dibaca
+    final hasUnread = room.unreadCount > 0; // 💡 Cek status unread
 
     return InkWell(
       onTap: () async {
-        // 💡 1. Jika ada unread, hapus indikator di UI seketika & kirim request mark as read ke backend
+        // 💡 1. Jika ada unread, hapus indikator di UI seketika & hit endpoint mark as read
         if (room.unreadCount > 0) {
           setState(() {
             room.unreadCount = 0;
@@ -158,11 +156,11 @@ class _ChatScreenState extends State<ChatScreen> {
           PageRouteBuilder(
             transitionDuration: Duration.zero,
             reverseTransitionDuration: Duration.zero,
-            pageBuilder: (_, __, ___) => ChatRoomScreen(room: room),
+            pageBuilder: (_, __, ___) => LecturerChatRoomScreen(room: room),
           ),
         );
 
-        // 💡 3. Refresh list room saat kembali dari room chat agar status terupdate
+        // 💡 3. Refresh list room saat kembali dari room chat
         if (!mounted) return;
         Provider.of<ChatProvider>(context, listen: false).loadRooms();
       },
@@ -196,8 +194,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     room.name,
                     style: TextStyle(
                       fontSize: 15,
-                      // 💡 Teks tebal jika ada pesan baru
-                      fontWeight: hasUnread ? FontWeight.bold : FontWeight.w600,
+                      fontWeight: hasUnread ? FontWeight.bold : FontWeight.w600, // 💡 Teks tebal jika unread
                       color: Colors.black87,
                     ),
                     maxLines: 1,
@@ -208,7 +205,6 @@ class _ChatScreenState extends State<ChatScreen> {
                     room.lastMessage ?? 'No messages yet',
                     style: TextStyle(
                       fontSize: 13,
-                      // 💡 Warna & ketebalan teks preview berubah jika ada pesan baru
                       fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
                       color: hasUnread ? Colors.black87 : Colors.grey,
                     ),
@@ -219,7 +215,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
 
-            // 💡 TIMESTAMP & UNREAD BADGE DI SEBELAH KANAN
+            // 💡 Timestamp & Unread Badge di Sebelah Kanan
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -238,7 +234,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2551E0), // Warna Badge Biru
+                      color: const Color(0xFF2551E0),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -251,7 +247,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   )
                 else
-                  const SizedBox(height: 14), // Penyeimbang layout
+                  const SizedBox(height: 14),
               ],
             ),
           ],
@@ -260,39 +256,65 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  // BOTTOM NAVIGATION BAR (Identik dengan home_screen.dart)
   Widget _buildBottomNav() {
-    final icons = [Icons.home, Icons.calendar_month, Icons.qr_code_scanner, Icons.chat_bubble, Icons.campaign];
+    final icons = [
+      Icons.home,
+      Icons.calendar_month,
+      Icons.chat_bubble,
+      Icons.campaign
+    ];
+
+    const currentActiveIndex = 2;
+
     return Container(
       height: 65,
       decoration: const BoxDecoration(
         color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, -2))],
+        boxShadow: [
+          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, -2))
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: List.generate(icons.length, (index) {
-          final selected = _selectedIndex == index;
+          final selected = currentActiveIndex == index;
           return GestureDetector(
             onTap: () {
               if (index == 0) {
                 Navigator.pushReplacement(
                   context,
-                  PageRouteBuilder(transitionDuration: Duration.zero, reverseTransitionDuration: Duration.zero, pageBuilder: (_, __, ___) => const HomeScreen()),
+                  PageRouteBuilder(
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: Duration.zero,
+                    pageBuilder: (_, __, ___) => const LecturerHomeScreen(),
+                  ),
                 );
               } else if (index == 1) {
                 Navigator.pushReplacement(
                   context,
-                  PageRouteBuilder(transitionDuration: Duration.zero, reverseTransitionDuration: Duration.zero, pageBuilder: (_, __, ___) => const ScheduleScreen()),
+                  PageRouteBuilder(
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: Duration.zero,
+                    pageBuilder: (_, __, ___) => const LecturerScheduleScreen(),
+                  ),
                 );
-              } else if (index == 4) {
+              } else if (index == 2) {
+                // Halaman Chat saat ini
+              } else if (index == 3) {
                 Navigator.pushReplacement(
                   context,
-                  PageRouteBuilder(transitionDuration: Duration.zero, reverseTransitionDuration: Duration.zero, pageBuilder: (_, __, ___) => const AnnouncementScreen()),
+                  PageRouteBuilder(
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: Duration.zero,
+                    pageBuilder: (_, __, ___) => const LecturerAnnouncementScreen(),
+                  ),
                 );
               }
             },
-            child: Icon(icons[index], color: selected ? const Color(0xFF4097FC) : Colors.black54),
+            child: Icon(
+              icons[index],
+              color: selected ? const Color(0xFF4097FC) : Colors.black54,
+            ),
           );
         }),
       ),
@@ -314,18 +336,18 @@ class _ChatScreenState extends State<ChatScreen> {
 }
 
 // ===================================================================
-// CHAT ROOM SCREEN (KONTEN PESAN INDIVIDUAL/GROUP)
+// LECTURER CHAT ROOM SCREEN (KONTEN PESAN INDIVIDUAL/GROUP UNTUK DOSEN)
 // ===================================================================
 
-class ChatRoomScreen extends StatefulWidget {
+class LecturerChatRoomScreen extends StatefulWidget {
   final ChatRoomModel room;
-  const ChatRoomScreen({Key? key, required this.room}) : super(key: key);
+  const LecturerChatRoomScreen({Key? key, required this.room}) : super(key: key);
 
   @override
-  State<ChatRoomScreen> createState() => _ChatRoomScreenState();
+  State<LecturerChatRoomScreen> createState() => _LecturerChatRoomScreenState();
 }
 
-class _ChatRoomScreenState extends State<ChatRoomScreen> {
+class _LecturerChatRoomScreenState extends State<LecturerChatRoomScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 

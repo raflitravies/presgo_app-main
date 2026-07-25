@@ -42,12 +42,17 @@ class LecturerAttendanceProvider extends ChangeNotifier {
 
   Future<void> loadSessionsByOffering(int offeringId) async {
     _isLoading = true;
+    _errorMessage = null; // 💡 Reset error message
     notifyListeners();
 
     try {
-      _sessions = await _attendanceService.getSessionsByOffering(offeringId);
+      final data = await _attendanceService.getSessionsByOffering(offeringId);
+      // Urutkan minggu dari terbesar/terbaru di paling atas
+      data.sort((a, b) => b.weekNumber.compareTo(a.weekNumber));
+      _sessions = data;
     } catch (e) {
       _errorMessage = e.toString();
+      _sessions = []; // Jika error, pastikan tetap list kosong
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -56,6 +61,7 @@ class LecturerAttendanceProvider extends ChangeNotifier {
 
   Future<void> loadRecordsBySession(int sessionId) async {
     _isLoading = true;
+    _errorMessage = null; // 💡 Reset error message
     notifyListeners();
 
     try {
@@ -71,6 +77,7 @@ class LecturerAttendanceProvider extends ChangeNotifier {
   Future<bool> createSession(int offeringId, String sessionDate,
       int weekNumber, String? topic) async {
     _isCreating = true;
+    _errorMessage = null;
     notifyListeners();
 
     try {
@@ -105,7 +112,7 @@ class LecturerAttendanceProvider extends ChangeNotifier {
   Future<bool> updateAttendanceManual(
       int sessionId, int studentId, String status, String? note) async {
     try {
-      final response = await _api.put(
+      await _api.put(
         '/attendance/sessions/$sessionId/manual',
         {
           'studentId': studentId,

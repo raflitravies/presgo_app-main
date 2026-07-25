@@ -33,17 +33,15 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
-  int _selectedDay = 3;
+
+  // State melacak tanggal aktif yang diklik
+  DateTime _selectedDate = DateTime.now();
   int _weekOffset = 0;
 
   DateTime get _weekStart {
     final now = DateTime.now();
     final monday = now.subtract(Duration(days: now.weekday - 1));
     return monday.add(Duration(days: _weekOffset * 7));
-  }
-
-  List<int> get _weekDates {
-    return List.generate(7, (i) => _weekStart.add(Duration(days: i)).day);
   }
 
   List<MenuItemData> _favouriteMenus = [
@@ -338,6 +336,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildCalendar() {
     final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final now = DateTime.now();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -345,29 +344,36 @@ class _HomeScreenState extends State<HomeScreen> {
         controller: PageController(initialPage: 1),
         onPageChanged: (page) {
           final newOffset = page - 1;
-          if (newOffset != _weekOffset) {
-            setState(() {
-              _weekOffset = newOffset;
-              _selectedDay = 0;
-            });
-          }
+          setState(() {
+            _weekOffset = newOffset;
+          });
         },
         itemCount: 3,
         itemBuilder: (context, page) {
           final offset = page - 1;
-          final now = DateTime.now();
           final monday = now.subtract(Duration(days: now.weekday - 1));
           final weekStart = monday.add(Duration(days: offset * 7));
-          final pageDates = List.generate(7, (i) => weekStart.add(Duration(days: i)).day);
+          final pageDates = List.generate(7, (i) => weekStart.add(Duration(days: i)));
 
           return Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(7, (index) {
-              final selected = offset == _weekOffset && index == _selectedDay;
+              final currentDate = pageDates[index];
+
+              // Cek apakah tanggal ini sedang DIKLIK oleh user
+              final isSelected = currentDate.year == _selectedDate.year &&
+                  currentDate.month == _selectedDate.month &&
+                  currentDate.day == _selectedDate.day;
+
+              // Cek apakah tanggal ini adalah HARI INI
+              final isToday = currentDate.year == now.year &&
+                  currentDate.month == now.month &&
+                  currentDate.day == now.day;
+
               return GestureDetector(
                 onTap: () => setState(() {
                   _weekOffset = offset;
-                  _selectedDay = index;
+                  _selectedDate = currentDate; // Simpan DateTime tanggal terpilih
                 }),
                 child: SizedBox(
                   width: 40,
@@ -375,17 +381,26 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(days[index], style: const TextStyle(fontSize: 12, color: Colors.black54)),
                     const SizedBox(height: 6),
                     Container(
-                      width: 32, height: 32, alignment: Alignment.center,
+                      width: 32,
+                      height: 32,
+                      alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: selected ? const Color(0xFF4097FC) : Colors.transparent,
+                        // Warna background biru padat jika sedang DIKLIK
+                        color: isSelected ? const Color(0xFF4097FC) : Colors.transparent,
                         borderRadius: BorderRadius.circular(6),
+                        // BORDER/GARIS TEPI BIRU untuk penanda HARI INI jika tidak sedang diklik
+                        border: isToday && !isSelected
+                            ? Border.all(color: const Color(0xFF4097FC), width: 1.5)
+                            : null,
                       ),
                       child: Text(
-                        "${pageDates[index]}",
+                        "${currentDate.day}",
                         style: TextStyle(
-                          color: selected ? Colors.white : Colors.black,
+                          color: isSelected
+                              ? Colors.white
+                              : (isToday ? const Color(0xFF4097FC) : Colors.black),
                           fontSize: 13,
-                          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                          fontWeight: (isSelected || isToday) ? FontWeight.w600 : FontWeight.normal,
                         ),
                       ),
                     ),
@@ -401,18 +416,30 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildScheduleSection() {
     final homeProvider = Provider.of<HomeProvider>(context);
-    final schedules = homeProvider.todaySchedule;
+    final allSchedules = homeProvider.todaySchedule;
+
+    // Nama-nama bulan singkat
+    final monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    // Header dinamis: Misal "Schedule on 23 Jul" atau "Schedule on 1 Jul"
+    final formattedDate = "${_selectedDate.day} ${monthNames[_selectedDate.month - 1]}";
+    final titleText = "Schedule on $formattedDate";
+
+    // Filter jadwal berdasarkan weekday tanggal terpilih (1=Mon ... 4=Thu ... 7=Sun)
+    final filteredSchedules = allSchedules.where((s) {
+      return s.dayOfWeek == _selectedDate.weekday;
+    }).toList();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Schedule on today", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          Text(titleText, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 12),
           if (homeProvider.isLoading)
             const Center(child: CircularProgressIndicator())
-          else if (schedules.isEmpty)
+          else if (filteredSchedules.isEmpty)
             const Center(
               child: Padding(
                 padding: EdgeInsets.all(20),
@@ -420,11 +447,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             )
           else
-            ...schedules.map((s) => Padding(
+            ...filteredSchedules.map((s) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: _buildScheduleRow(
-                startTime: s.startTime.substring(0, 5),
-                endTime: s.endTime.substring(0, 5),
+                startTime: s.startTime.length >= 5 ? s.startTime.substring(0, 5) : s.startTime,
+                endTime: s.endTime.length >= 5 ? s.endTime.substring(0, 5) : s.endTime,
                 title: s.courseName,
                 room: s.room ?? '-',
                 type: s.type,

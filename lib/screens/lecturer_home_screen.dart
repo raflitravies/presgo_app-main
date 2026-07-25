@@ -3,14 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/home_provider.dart';
-import '../providers/schedule_provider.dart';
 import 'profile_screen.dart';
-import 'schedule_screen.dart';
 import 'lecturer_courses_screen.dart';
 import 'lecturer_attendance_screen.dart';
 import 'lecturer_advisees_screen.dart';
-import 'announcement_screen.dart';
-import 'chat_screen.dart';
+import 'lecturer_announcement_screen.dart';
+import 'lecturer_chat_screen.dart';
+import 'lecturer_schedule_screen.dart';
 
 class LecturerHomeScreen extends StatefulWidget {
   const LecturerHomeScreen({Key? key}) : super(key: key);
@@ -20,7 +19,9 @@ class LecturerHomeScreen extends StatefulWidget {
 }
 
 class _LecturerHomeScreenState extends State<LecturerHomeScreen> {
-  int _selectedIndex = 0;
+  DateTime _selectedDate = DateTime.now();
+  int _weekOffset = 0;
+  final int _selectedIndex = 0;
 
   @override
   void initState() {
@@ -34,17 +35,23 @@ class _LecturerHomeScreenState extends State<LecturerHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFEDEDED),
+      resizeToAvoidBottomInset: false,
       body: AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.light,
         child: SafeArea(
+          bottom: false,
           child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 110),
             child: Column(
               children: [
                 _buildTopSection(),
                 const SizedBox(height: 110),
                 _buildMenuSection(),
                 const SizedBox(height: 20),
-                _buildTodayScheduleSection(),
+                SizedBox(height: 72, child: _buildCalendar()),
+                const SizedBox(height: 20),
+                _buildScheduleSection(),
                 const SizedBox(height: 30),
               ],
             ),
@@ -122,7 +129,7 @@ class _LecturerHomeScreenState extends State<LecturerHomeScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFF5B9BE6),
               borderRadius: BorderRadius.circular(18),
-              boxShadow: [BoxShadow(blurRadius: 25, offset: const Offset(0, 12), color: Colors.black.withOpacity(0.18))],
+              boxShadow: [BoxShadow(blurRadius: 25, offset: const Offset(0, 12), color: Colors.black.withValues(alpha: 0.18))],
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -132,13 +139,13 @@ class _LecturerHomeScreenState extends State<LecturerHomeScreen> {
                   homeProvider.todaySchedule.length.toString(),
                   "Today's Classes",
                 ),
-                Container(width: 1, height: 40, color: Colors.white.withOpacity(0.3)),
+                Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.3)),
                 _buildStatItem(
                   Icons.people_outline,
                   '-',
                   'Students',
                 ),
-                Container(width: 1, height: 40, color: Colors.white.withOpacity(0.3)),
+                Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.3)),
                 _buildStatItem(
                   Icons.assignment_outlined,
                   '-',
@@ -251,34 +258,122 @@ class _LecturerHomeScreenState extends State<LecturerHomeScreen> {
         Navigator.push(context, PageRouteBuilder(
           transitionDuration: Duration.zero,
           reverseTransitionDuration: Duration.zero,
-          pageBuilder: (_, __, ___) => const AnnouncementScreen(),
+          pageBuilder: (_, __, ___) => const LecturerAnnouncementScreen(),
         ));
         break;
       case 'Chat':
         Navigator.push(context, PageRouteBuilder(
           transitionDuration: Duration.zero,
           reverseTransitionDuration: Duration.zero,
-          pageBuilder: (_, __, ___) => const ChatScreen(),
+          pageBuilder: (_, __, ___) => const LecturerChatScreen(),
         ));
         break;
     }
   }
 
-  Widget _buildTodayScheduleSection() {
+  Widget _buildCalendar() {
+    final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final now = DateTime.now();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: PageView.builder(
+        controller: PageController(initialPage: 1),
+        onPageChanged: (page) {
+          final newOffset = page - 1;
+          setState(() {
+            _weekOffset = newOffset;
+          });
+        },
+        itemCount: 3,
+        itemBuilder: (context, page) {
+          final offset = page - 1;
+          final monday = now.subtract(Duration(days: now.weekday - 1));
+          final weekStart = monday.add(Duration(days: offset * 7));
+          final pageDates = List.generate(7, (i) => weekStart.add(Duration(days: i)));
+
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(7, (index) {
+              final currentDate = pageDates[index];
+
+              final isSelected = currentDate.year == _selectedDate.year &&
+                  currentDate.month == _selectedDate.month &&
+                  currentDate.day == _selectedDate.day;
+
+              final isToday = currentDate.year == now.year &&
+                  currentDate.month == now.month &&
+                  currentDate.day == now.day;
+
+              return GestureDetector(
+                onTap: () => setState(() {
+                  _weekOffset = offset;
+                  _selectedDate = currentDate;
+                }),
+                child: SizedBox(
+                  width: 40,
+                  child: Column(children: [
+                    Text(days[index], style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                    const SizedBox(height: 6),
+                    Container(
+                      width: 32,
+                      height: 32,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFF4097FC) : Colors.transparent,
+                        borderRadius: BorderRadius.circular(6),
+                        border: isToday && !isSelected
+                            ? Border.all(color: const Color(0xFF4097FC), width: 1.5)
+                            : null,
+                      ),
+                      child: Text(
+                        "${currentDate.day}",
+                        style: TextStyle(
+                          color: isSelected
+                              ? Colors.white
+                              : (isToday ? const Color(0xFF4097FC) : Colors.black),
+                          fontSize: 13,
+                          fontWeight: (isSelected || isToday) ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  ]),
+                ),
+              );
+            }),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildScheduleSection() {
     final homeProvider = Provider.of<HomeProvider>(context);
-    final schedules = homeProvider.todaySchedule;
+    final allSchedules = homeProvider.todaySchedule;
+
+    final now = DateTime.now();
+    final isTodaySelected = _selectedDate.year == now.year &&
+        _selectedDate.month == now.month &&
+        _selectedDate.day == now.day;
+
+    final monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final formattedDate = "${_selectedDate.day} ${monthNames[_selectedDate.month - 1]}";
+    final titleText = isTodaySelected ? "Schedule on today" : "Schedule on $formattedDate";
+
+    final filteredSchedules = allSchedules.where((s) {
+      return s.dayOfWeek == _selectedDate.weekday;
+    }).toList();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Today's Teaching Schedule",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          Text(titleText, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 12),
           if (homeProvider.isLoading)
             const Center(child: CircularProgressIndicator())
-          else if (schedules.isEmpty)
+          else if (filteredSchedules.isEmpty)
             const Center(
               child: Padding(
                 padding: EdgeInsets.all(20),
@@ -286,7 +381,7 @@ class _LecturerHomeScreenState extends State<LecturerHomeScreen> {
               ),
             )
           else
-            ...schedules.map((s) => Padding(
+            ...filteredSchedules.map((s) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: _buildScheduleCard(s),
             )),
@@ -308,14 +403,18 @@ class _LecturerHomeScreenState extends State<LecturerHomeScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(s.startTime.substring(0, 5),
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-              Text(s.endTime.substring(0, 5),
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.black54)),
+              Text(
+                s.startTime.length >= 5 ? s.startTime.substring(0, 5) : s.startTime,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+              ),
+              Text(
+                s.endTime.length >= 5 ? s.endTime.substring(0, 5) : s.endTime,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.black54),
+              ),
             ],
           ),
           const SizedBox(width: 12),
-          Container(width: 1, height: 36, color: const Color(0xFF4097FC).withOpacity(0.3)),
+          Container(width: 1, height: 36, color: const Color(0xFF4097FC).withValues(alpha: 0.3)),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -364,29 +463,41 @@ class _LecturerHomeScreenState extends State<LecturerHomeScreen> {
           return GestureDetector(
             onTap: () {
               if (index == 0) {
-                setState(() => _selectedIndex = 0);
+                // Sudah di Home
               } else if (index == 1) {
-                Navigator.push(context, PageRouteBuilder(
-                  transitionDuration: Duration.zero,
-                  reverseTransitionDuration: Duration.zero,
-                  pageBuilder: (_, __, ___) => const ScheduleScreen(),
-                ));
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: Duration.zero,
+                    pageBuilder: (_, __, ___) => const LecturerScheduleScreen(),
+                  ),
+                );
               } else if (index == 2) {
-                Navigator.push(context, PageRouteBuilder(
-                  transitionDuration: Duration.zero,
-                  reverseTransitionDuration: Duration.zero,
-                  pageBuilder: (_, __, ___) => const ChatScreen(),
-                ));
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: Duration.zero,
+                    pageBuilder: (_, __, ___) => const LecturerChatScreen(),
+                  ),
+                );
               } else if (index == 3) {
-                Navigator.push(context, PageRouteBuilder(
-                  transitionDuration: Duration.zero,
-                  reverseTransitionDuration: Duration.zero,
-                  pageBuilder: (_, __, ___) => const AnnouncementScreen(),
-                ));
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: Duration.zero,
+                    pageBuilder: (_, __, ___) => const LecturerAnnouncementScreen(),
+                  ),
+                );
               }
             },
-            child: Icon(icons[index],
-                color: selected ? const Color(0xFF4097FC) : Colors.black54),
+            child: Icon(
+              icons[index],
+              color: selected ? const Color(0xFF2551E0) : Colors.black54,
+              size: 24,
+            ),
           );
         }),
       ),

@@ -5,6 +5,7 @@ class ChatRoomModel {
   final int? offeringId;
   final String? lastMessage;
   final String? lastMessageAt;
+  int unreadCount;
 
   ChatRoomModel({
     required this.id,
@@ -13,6 +14,7 @@ class ChatRoomModel {
     this.offeringId,
     this.lastMessage,
     this.lastMessageAt,
+    required this.unreadCount,
   });
 
   factory ChatRoomModel.fromJson(Map<String, dynamic> json) {
@@ -23,6 +25,7 @@ class ChatRoomModel {
       offeringId: json['offeringId'],
       lastMessage: json['lastMessage'],
       lastMessageAt: json['lastMessageAt'],
+      unreadCount: json['unreadCount'] ?? 0,
     );
   }
 }

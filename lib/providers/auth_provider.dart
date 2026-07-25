@@ -34,7 +34,35 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = _cleanErrorMessage(e.toString());
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // 💡 TAMBAHKAN METHOD INI FOR CHANGE PASSWORD
+  Future<bool> changePassword(String oldPassword, String newPassword) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final updatedUser = await _authService.changePassword(oldPassword, newPassword);
+
+      // Update state user lokal (termasuk isFirstLogin = false)
+      if (updatedUser != null) {
+        _user = updatedUser;
+      } else if (_user != null) {
+        // Fallback jika backend mengembalikan void/null
+        _user = _user!.copyWith(isFirstLogin: false);
+      }
+
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = _cleanErrorMessage(e.toString());
       _isLoading = false;
       notifyListeners();
       return false;
@@ -46,4 +74,12 @@ class AuthProvider extends ChangeNotifier {
     _user = null;
     notifyListeners();
   }
+
+  String _cleanErrorMessage(String e) {
+    if (e.startsWith('Exception: ')) {
+      return e.replaceFirst('Exception: ', '');
+    }
+    return e;
+  }
+
 }

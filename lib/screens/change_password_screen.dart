@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
-import '../services/auth_service.dart';
 import 'home_screen.dart';
 import 'admin_dashboard_screen.dart';
 import 'staff_dashboard_screen.dart';
@@ -19,7 +18,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   final _oldPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -30,58 +28,86 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   }
 
   Future<void> _handleChangePassword() async {
-    if (_newPasswordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Passwords do not match')),
-      );
+    final oldPassword = _oldPasswordController.text.trim();
+    final newPassword = _newPasswordController.text.trim();
+    final confirmPassword = _confirmPasswordController.text.trim();
+
+    if (oldPassword.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
+      _showErrorDialog('Warning', 'Please fill in all password fields.');
       return;
     }
 
-    if (_newPasswordController.text.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password must be at least 6 characters')),
-      );
+    if (newPassword != confirmPassword) {
+      _showErrorDialog('Validation Error', 'New password and confirmation do not match.');
       return;
     }
 
-    setState(() => _isLoading = true);
+    if (newPassword.length < 6) {
+      _showErrorDialog('Validation Error', 'New password must be at least 6 characters.');
+      return;
+    }
 
-    try {
-      final authService = AuthService();
-      await authService.changePassword(
-        _oldPasswordController.text,
-        _newPasswordController.text,
-      );
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-      // Update isFirstLogin di local storage
-      await authService.updateFirstLoginStatus();
+    final success = await authProvider.changePassword(
+      oldPassword,
+      newPassword,
+    );
 
-      if (!mounted) return;
+    if (!mounted) return;
 
+    if (success) {
+      // Alert Sukses
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password changed successfully')),
+        const SnackBar(
+          content: Text('Password changed successfully!'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
 
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final user = authProvider.user;
-
       Widget destination = const HomeScreen();
-      if (user?.role == 'ADMIN') destination = const AdminDashboardScreen();
-      else if (user?.role == 'STAFF') destination = const StaffDashboardScreen();
-      else if (user?.role == 'LECTURER') destination = const LecturerDashboardScreen();
+      if (user?.role == 'ADMIN') {
+        destination = const AdminDashboardScreen();
+      } else if (user?.role == 'STAFF') {
+        destination = const StaffDashboardScreen();
+      } else if (user?.role == 'LECTURER') {
+        destination = const LecturerDashboardScreen();
+      }
 
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => destination),
       );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
-    } finally {
-      setState(() => _isLoading = false);
+    } else {
+
+      final errorMsg = authProvider.errorMessage ?? 'Failed to change password. Please try again.';
+      _showErrorDialog('Change Password Failed', errorMsg);
     }
+  }
+
+  void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red),
+            const SizedBox(width: 8),
+            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(message, style: const TextStyle(fontSize: 14)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('OK', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -97,13 +123,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         elevation: 0,
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (widget.isFirstLogin) ...[
-                const SizedBox(height: 40),
+                const SizedBox(height: 20),
                 const Text(
                   'Welcome to PresGO!',
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
@@ -121,19 +147,27 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               const SizedBox(height: 12),
               _buildPasswordField('Confirm New Password', _confirmPasswordController),
               const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleChangePassword,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Change Password', style: TextStyle(color: Colors.white)),
-                ),
+              Consumer<AuthProvider>(
+                builder: (context, authProvider, _) {
+                  return SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: authProvider.isLoading ? null : _handleChangePassword,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: authProvider.isLoading
+                          ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                          : const Text('Change Password', style: TextStyle(color: Colors.white)),
+                    ),
+                  );
+                },
               ),
             ],
           ),

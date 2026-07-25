@@ -39,14 +39,14 @@ class HomeProvider extends ChangeNotifier {
       final response = await _api.get('/grades/my/transcript');
       _transcript = TranscriptModel.fromJson(response['data']);
     } catch (e) {
-      // Transcript mungkin kosong untuk user baru
       _transcript = null;
     }
   }
 
   Future<void> _loadTodaySchedule() async {
     try {
-      final response = await _api.get('/schedules/my/today');
+      // ✅ GANTI DARI '/schedules/my/today' JADI '/schedules/my/class'
+      final response = await _api.get('/schedules/my/class');
       _todaySchedule = (response['data'] as List)
           .map((s) => ScheduleModel.fromJson(s))
           .toList();
@@ -61,7 +61,8 @@ class HomeProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _api.get('/schedules/my/teaching/today');
+      // ✅ UNTUK DOSEN JUGA GANTI KE '/schedules/my/teaching'
+      final response = await _api.get('/schedules/my/teaching');
       _todaySchedule = (response['data'] as List)
           .map((s) => ScheduleModel.fromJson(s))
           .toList();

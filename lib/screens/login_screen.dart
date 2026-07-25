@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:presgo/screens/lecturer_home_screen.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'home_screen.dart';
 import 'change_password_screen.dart';
 import 'admin_dashboard_screen.dart';
 import 'staff_dashboard_screen.dart';
-import 'lecturer_dashboard_screen.dart';
+import 'lecturer_main_navigation.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -27,19 +28,40 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red),
+            const SizedBox(width: 8),
+            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(message, style: const TextStyle(fontSize: 14)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('OK', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _handleLogin() async {
-    if (_nimNipController.text.isEmpty || _passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('NIM/NIP and password are required')),
-      );
+    final nimNip = _nimNipController.text.trim();
+    final password = _passwordController.text;
+
+    if (nimNip.isEmpty || password.isEmpty) {
+      _showErrorDialog('Login Failed', 'Please enter both NIM/NIP and password.');
       return;
     }
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final success = await authProvider.login(
-      _nimNipController.text.trim(),
-      _passwordController.text,
-    );
+    final success = await authProvider.login(nimNip, password);
 
     if (!mounted) return;
 
@@ -52,9 +74,8 @@ class _LoginScreenState extends State<LoginScreen> {
               builder: (_) => const ChangePasswordScreen(isFirstLogin: true)),
         );
       } else {
-        // Routing berdasarkan role
         Widget destination;
-        switch (user.role) {
+        switch (user.role.toUpperCase()) {
           case 'ADMIN':
             destination = const AdminDashboardScreen();
             break;
@@ -62,16 +83,20 @@ class _LoginScreenState extends State<LoginScreen> {
             destination = const StaffDashboardScreen();
             break;
           case 'LECTURER':
-            destination = const LecturerDashboardScreen();
+          case 'DOSEN':
+            destination = const LecturerHomeScreen();
             break;
           default:
-            destination = const HomeScreen(); // STUDENT
+            destination = const HomeScreen();
         }
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => destination),
         );
       }
+    } else {
+      final errorMsg = authProvider.errorMessage ?? 'Invalid NIM/NIP or password.';
+      _showErrorDialog('Login Failed', errorMsg);
     }
   }
 
@@ -169,7 +194,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     )
                         : const Text(
                       'Login',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white),
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white),
                     ),
                   ),
                 ),
