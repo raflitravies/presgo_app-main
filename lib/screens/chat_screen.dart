@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart'; // 💡 Wajib import intl
 import '../core/network/api_client.dart';
 import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
@@ -299,14 +300,21 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  // 💡 Menggunakan format tanggal/waktu yang lebih dinamis (Hari Ini, Kemarin, dll atau jam)
   String _formatTime(String dateTimeStr) {
     try {
-      final dt = DateTime.parse(dateTimeStr);
+      final dt = DateTime.parse(dateTimeStr).toLocal();
       final now = DateTime.now();
-      if (dt.day == now.day && dt.month == now.month && dt.year == now.year) {
+      final today = DateTime(now.year, now.month, now.day);
+      final messageDate = DateTime(dt.year, dt.month, dt.day);
+
+      if (messageDate == today) {
         return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      } else if (now.difference(dt).inDays < 7) {
+        return DateFormat('EEEE', 'id_ID').format(dt);
+      } else {
+        return DateFormat('d MMM', 'id_ID').format(dt);
       }
-      return '${dt.day}/${dt.month}';
     } catch (_) {
       return '';
     }
@@ -412,7 +420,51 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   itemBuilder: (context, index) {
                     final msg = provider.messages[index];
                     final isMe = msg.senderId == currentUserId;
-                    return _buildMessageBubble(msg, isMe);
+
+                    bool showDateHeader = false;
+                    String dateHeaderStr = '';
+
+                    if (index == 0) {
+                      showDateHeader = true;
+                      dateHeaderStr = _formatDateHeader(msg.createdAt);
+                    } else {
+                      final prevMsg = provider.messages[index - 1];
+                      final prevDate = DateTime.tryParse(prevMsg.createdAt)?.toLocal();
+                      final currDate = DateTime.tryParse(msg.createdAt)?.toLocal();
+
+                      if (prevDate != null && currDate != null) {
+                        final pDateOnly = DateTime(prevDate.year, prevDate.month, prevDate.day);
+                        final cDateOnly = DateTime(currDate.year, currDate.month, currDate.day);
+                        if (pDateOnly != cDateOnly) {
+                          showDateHeader = true;
+                          dateHeaderStr = _formatDateHeader(msg.createdAt);
+                        }
+                      }
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (showDateHeader && dateHeaderStr.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Center(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade300,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                dateHeaderStr,
+                                style: const TextStyle(fontSize: 11, color: Colors.black87, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        _buildMessageBubble(msg, isMe),
+                      ],
+                    );
                   },
                 );
               },
@@ -465,45 +517,74 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   }
 
   Widget _buildMessageBubble(ChatMessageModel msg, bool isMe) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-        children: [
-          if (!isMe)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 2, left: 4),
+    return Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Column(
+          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            if (!isMe)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2, left: 4),
+                child: Text(
+                  msg.senderName,
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
+                ),
+              ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+              decoration: BoxDecoration(
+                color: isMe ? const Color(0xff3B44CB) : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: isMe ? null : Border.all(color: Colors.grey.shade300),
+              ),
               child: Text(
-                msg.senderName,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
+                msg.content,
+                style: TextStyle(fontSize: 14, color: isMe ? Colors.white : Colors.black87),
               ),
             ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: isMe ? const Color(0xff3B44CB) : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: isMe ? null : Border.all(color: Colors.grey.shade300),
+            const SizedBox(height: 2),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                _formatTime(msg.createdAt),
+                style: const TextStyle(fontSize: 10, color: Colors.grey),
+              ),
             ),
-            child: Text(
-              msg.content,
-              style: TextStyle(fontSize: 14, color: isMe ? Colors.white : Colors.black87),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            _formatTime(msg.createdAt),
-            style: const TextStyle(fontSize: 10, color: Colors.grey),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   String _formatTime(String dateTimeStr) {
     try {
-      final dt = DateTime.parse(dateTimeStr);
+      final dt = DateTime.parse(dateTimeStr).toLocal();
       return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  String _formatDateHeader(String dateTimeStr) {
+    try {
+      final dt = DateTime.parse(dateTimeStr).toLocal();
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final yesterday = today.subtract(const Duration(days: 1));
+      final messageDate = DateTime(dt.year, dt.month, dt.day);
+
+      if (messageDate == today) {
+        return 'Hari Ini';
+      } else if (messageDate == yesterday) {
+        return 'Kemarin';
+      } else if (messageDate.year == now.year) {
+        return DateFormat('d MMM', 'id_ID').format(dt);
+      } else {
+        return DateFormat('d MMM yyyy', 'id_ID').format(dt);
+      }
     } catch (_) {
       return '';
     }

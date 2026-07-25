@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../core/network/api_client.dart';
 import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
@@ -40,7 +41,6 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
       backgroundColor: const Color(0xffF8F9FA),
       body: Stack(
         children: [
-
           Container(
             height: 220,
             decoration: const BoxDecoration(
@@ -55,7 +55,6 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header Title
                 const Padding(
                   padding: EdgeInsets.only(left: 20, right: 20, top: 16, bottom: 12),
                   child: Text(
@@ -67,8 +66,6 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
                     ),
                   ),
                 ),
-
-                // Search Bar
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   child: Container(
@@ -91,8 +88,6 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
                     ),
                   ),
                 ),
-
-                // List Room Chat
                 Expanded(
                   child: Consumer<ChatProvider>(
                     builder: (context, provider, _) {
@@ -126,19 +121,16 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
           ),
         ],
       ),
-
-      // MENAMBAHKAN BOTTOM NAVIGATION BAR KHUSUS LECTURER
       bottomNavigationBar: _buildBottomNav(),
     );
   }
 
   Widget _buildChatItem(ChatRoomModel room) {
     final isGroup = room.type == 'GROUP_COURSE';
-    final hasUnread = room.unreadCount > 0; // 💡 Cek status unread
+    final hasUnread = room.unreadCount > 0;
 
     return InkWell(
       onTap: () async {
-        // 💡 1. Jika ada unread, hapus indikator di UI seketika & hit endpoint mark as read
         if (room.unreadCount > 0) {
           setState(() {
             room.unreadCount = 0;
@@ -150,7 +142,6 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
 
         Provider.of<ChatProvider>(context, listen: false).clearMessages();
 
-        // 💡 2. Masuk ke ruang chat
         await Navigator.push(
           context,
           PageRouteBuilder(
@@ -160,7 +151,6 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
           ),
         );
 
-        // 💡 3. Refresh list room saat kembali dari room chat
         if (!mounted) return;
         Provider.of<ChatProvider>(context, listen: false).loadRooms();
       },
@@ -169,7 +159,6 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
         child: Row(
           children: [
-            // Avatar Lingkaran Abu-abu sesuai Prototype
             Container(
               width: 50,
               height: 50,
@@ -184,8 +173,6 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
               ),
             ),
             const SizedBox(width: 14),
-
-            // Nama Room & Last Message
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,7 +181,7 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
                     room.name,
                     style: TextStyle(
                       fontSize: 15,
-                      fontWeight: hasUnread ? FontWeight.bold : FontWeight.w600, // 💡 Teks tebal jika unread
+                      fontWeight: hasUnread ? FontWeight.bold : FontWeight.w600,
                       color: Colors.black87,
                     ),
                     maxLines: 1,
@@ -214,8 +201,6 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
                 ],
               ),
             ),
-
-            // 💡 Timestamp & Unread Badge di Sebelah Kanan
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -299,7 +284,6 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
                   ),
                 );
               } else if (index == 2) {
-                // Halaman Chat saat ini
               } else if (index == 3) {
                 Navigator.pushReplacement(
                   context,
@@ -323,21 +307,23 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
 
   String _formatTime(String dateTimeStr) {
     try {
-      final dt = DateTime.parse(dateTimeStr);
+      final dt = DateTime.parse(dateTimeStr).toLocal();
       final now = DateTime.now();
-      if (dt.day == now.day && dt.month == now.month && dt.year == now.year) {
+      final today = DateTime(now.year, now.month, now.day);
+      final messageDate = DateTime(dt.year, dt.month, dt.day);
+
+      if (messageDate == today) {
         return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      } else if (now.difference(messageDate).inDays < 7) {
+        return DateFormat('EEEE', 'id_ID').format(dt);
+      } else {
+        return DateFormat('d MMM', 'id_ID').format(dt);
       }
-      return '${dt.day}/${dt.month}';
     } catch (_) {
       return '';
     }
   }
 }
-
-// ===================================================================
-// LECTURER CHAT ROOM SCREEN (KONTEN PESAN INDIVIDUAL/GROUP UNTUK DOSEN)
-// ===================================================================
 
 class LecturerChatRoomScreen extends StatefulWidget {
   final ChatRoomModel room;
@@ -434,7 +420,51 @@ class _LecturerChatRoomScreenState extends State<LecturerChatRoomScreen> {
                   itemBuilder: (context, index) {
                     final msg = provider.messages[index];
                     final isMe = msg.senderId == currentUserId;
-                    return _buildMessageBubble(msg, isMe);
+
+                    bool showDateHeader = false;
+                    String dateHeaderStr = '';
+
+                    if (index == 0) {
+                      showDateHeader = true;
+                      dateHeaderStr = _formatDateHeader(msg.createdAt);
+                    } else {
+                      final prevMsg = provider.messages[index - 1];
+                      final prevDate = DateTime.tryParse(prevMsg.createdAt)?.toLocal();
+                      final currDate = DateTime.tryParse(msg.createdAt)?.toLocal();
+
+                      if (prevDate != null && currDate != null) {
+                        final pDateOnly = DateTime(prevDate.year, prevDate.month, prevDate.day);
+                        final cDateOnly = DateTime(currDate.year, currDate.month, currDate.day);
+                        if (pDateOnly != cDateOnly) {
+                          showDateHeader = true;
+                          dateHeaderStr = _formatDateHeader(msg.createdAt);
+                        }
+                      }
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (showDateHeader && dateHeaderStr.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Center(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade300,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                dateHeaderStr,
+                                style: const TextStyle(fontSize: 11, color: Colors.black87, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        _buildMessageBubble(msg, isMe),
+                      ],
+                    );
                   },
                 );
               },
@@ -487,47 +517,84 @@ class _LecturerChatRoomScreenState extends State<LecturerChatRoomScreen> {
   }
 
   Widget _buildMessageBubble(ChatMessageModel msg, bool isMe) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-        children: [
-          if (!isMe)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 2, left: 4),
+    return Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Column(
+          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            if (!isMe)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2, left: 4),
+                child: Text(
+                  msg.senderName,
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
+                ),
+              ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+              decoration: BoxDecoration(
+                color: isMe ? const Color(0xff3B44CB) : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: isMe ? null : Border.all(color: Colors.grey.shade300),
+              ),
               child: Text(
-                msg.senderName,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
+                msg.content,
+                style: TextStyle(fontSize: 14, color: isMe ? Colors.white : Colors.black87),
               ),
             ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: isMe ? const Color(0xff3B44CB) : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: isMe ? null : Border.all(color: Colors.grey.shade300),
+            const SizedBox(height: 2),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                _formatTime(msg.createdAt),
+                style: const TextStyle(fontSize: 10, color: Colors.grey),
+              ),
             ),
-            child: Text(
-              msg.content,
-              style: TextStyle(fontSize: 14, color: isMe ? Colors.white : Colors.black87),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            _formatTime(msg.createdAt),
-            style: const TextStyle(fontSize: 10, color: Colors.grey),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   String _formatTime(String dateTimeStr) {
     try {
-      final dt = DateTime.parse(dateTimeStr);
+      final dt = DateTime.parse(dateTimeStr).toLocal();
       return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
     } catch (_) {
       return '';
     }
+  }
+
+  String _formatDateHeader(String dateTimeStr) {
+    try {
+      final dt = DateTime.parse(dateTimeStr).toLocal();
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final yesterday = today.subtract(const Duration(days: 1));
+      final messageDate = DateTime(dt.year, dt.month, dt.day);
+
+      if (messageDate == today) {
+        return 'Hari Ini';
+      } else if (messageDate == yesterday) {
+        return 'Kemarin';
+      } else if (messageDate.year == now.year) {
+        return '${dt.day} ${_getMonthName(dt.month)}';
+      } else {
+        return '${dt.day} ${_getMonthName(dt.month)} ${dt.year}';
+      }
+    } catch (_) {
+      return dateTimeStr;
+    }
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+      'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'
+    ];
+    return months[month - 1];
   }
 }

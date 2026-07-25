@@ -39,6 +39,11 @@ class ChatProvider extends ChangeNotifier {
 
     try {
       _messages = await _service.getMessages(roomId);
+      _messages.sort((a, b) {
+        final dateA = DateTime.tryParse(a.createdAt) ?? DateTime(0);
+        final dateB = DateTime.tryParse(b.createdAt) ?? DateTime(0);
+        return dateA.compareTo(dateB);
+      });
     } catch (e) {
       _errorMessage = e.toString();
     } finally {
@@ -55,7 +60,12 @@ class ChatProvider extends ChangeNotifier {
       final message = await _service.sendMessage(roomId, content);
       _messages.add(message);
 
-      // Update last message di room list sekaligus mempertahankan unreadCount
+      _messages.sort((a, b) {
+        final dateA = DateTime.tryParse(a.createdAt) ?? DateTime(0);
+        final dateB = DateTime.tryParse(b.createdAt) ?? DateTime(0);
+        return dateA.compareTo(dateB);
+      });
+
       final roomIndex = _rooms.indexWhere((r) => r.id == roomId);
       if (roomIndex != -1) {
         final currentRoom = _rooms[roomIndex];
@@ -66,10 +76,9 @@ class ChatProvider extends ChangeNotifier {
           offeringId: currentRoom.offeringId,
           lastMessage: content,
           lastMessageAt: message.createdAt,
-          unreadCount: currentRoom.unreadCount, // Pertahankan nilai unreadCount
+          unreadCount: currentRoom.unreadCount,
         );
 
-        // Geser room yang baru di-chat ke urutan paling atas secara lokal
         final updatedRoom = _rooms.removeAt(roomIndex);
         _rooms.insert(0, updatedRoom);
       }
