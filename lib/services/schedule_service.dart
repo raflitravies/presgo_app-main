@@ -31,4 +31,23 @@ class ScheduleService {
         .map((s) => ScheduleModel.fromJson(s))
         .toList();
   }
+
+  Future<ScheduleModel> createExamSchedule(int offeringId, String examDate,
+      String startTime, String endTime, String? room) async {
+    final response = await _api.post('/schedules/exam', {
+      'offeringId': offeringId,
+      'examDate': examDate,
+      'startTime': startTime,
+      'endTime': endTime,
+      if (room != null) 'room': room,
+    });
+    return ScheduleModel.fromJson(response['data']);
+  }
+
+  Future<List<ScheduleModel>> getOfferingSchedules(int offeringId) async {
+    final response = await _api.get('/schedules/offering/$offeringId');
+    return (response['data'] as List)
+        .map((s) => ScheduleModel.fromJson(s))
+        .toList();
+  }
 }
