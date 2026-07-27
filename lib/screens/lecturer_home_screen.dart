@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/home_provider.dart';
+import '../models/schedule_model.dart';
 import 'profile_screen.dart';
 import 'lecturer_courses_screen.dart';
 import 'lecturer_attendance_screen.dart';
@@ -360,8 +361,34 @@ class _LecturerHomeScreenState extends State<LecturerHomeScreen> {
     final formattedDate = "${_selectedDate.day} ${monthNames[_selectedDate.month - 1]}";
     final titleText = isTodaySelected ? "Schedule on today" : "Schedule on $formattedDate";
 
+    // Standardize string format: "YYYY-MM-DD"
+    final selectedDateStr = "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
+
     final filteredSchedules = allSchedules.where((s) {
-      return s.dayOfWeek == _selectedDate.weekday;
+      final isReschedule = s.type == ScheduleType.RESCHEDULE || s.type.toString().contains('RESCHEDULE');
+      final isExam = s.type == ScheduleType.EXAM || s.type.toString().contains('EXAM');
+
+      // 1. Jika jadwal RESCHEDULE -> Cek tanggal spesifiknya
+      if (isReschedule) {
+        return s.specificDate == selectedDateStr;
+      }
+
+      // 2. Jika jadwal EXAM -> Cek tanggal ujiannya
+      if (isExam) {
+        return s.examDate == selectedDateStr;
+      }
+
+      // 3. Jika jadwal REGULER -> Cek hari, pastikan tidak dibatalkan oleh reschedule di tanggal ini
+      if (s.dayOfWeek == _selectedDate.weekday) {
+        bool isCancelled = allSchedules.any((other) =>
+        (other.type == ScheduleType.RESCHEDULE || other.type.toString().contains('RESCHEDULE')) &&
+            other.offeringId == s.offeringId &&
+            other.originalDate == selectedDateStr);
+
+        return !isCancelled;
+      }
+
+      return false;
     }).toList();
 
     return Padding(
@@ -391,12 +418,29 @@ class _LecturerHomeScreenState extends State<LecturerHomeScreen> {
   }
 
   Widget _buildScheduleCard(dynamic s) {
+    final isReschedule = s.type == ScheduleType.RESCHEDULE || s.type.toString().contains('RESCHEDULE');
+    final isExam = s.type == ScheduleType.EXAM || s.type.toString().contains('EXAM');
+
+    Color themeColor = const Color(0xFF4097FC);
+    String typeLabel = s.classCode.isNotEmpty ? s.classCode : 'CLASS';
+
+    if (isReschedule) {
+      themeColor = Colors.orange;
+      typeLabel = 'RESCHEDULE';
+    } else if (isExam) {
+      themeColor = Colors.red;
+      typeLabel = 'EXAM';
+    }
+
+    final startTime = s.startTime.length >= 5 ? s.startTime.substring(0, 5) : s.startTime;
+    final endTime = s.endTime.length >= 5 ? s.endTime.substring(0, 5) : s.endTime;
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF4097FC), width: 1.5),
+        border: Border.all(color: themeColor, width: 1.5),
       ),
       child: Row(
         children: [
@@ -404,17 +448,17 @@ class _LecturerHomeScreenState extends State<LecturerHomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                s.startTime.length >= 5 ? s.startTime.substring(0, 5) : s.startTime,
+                startTime,
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
               ),
               Text(
-                s.endTime.length >= 5 ? s.endTime.substring(0, 5) : s.endTime,
+                endTime,
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.black54),
               ),
             ],
           ),
           const SizedBox(width: 12),
-          Container(width: 1, height: 36, color: const Color(0xFF4097FC).withValues(alpha: 0.3)),
+          Container(width: 1, height: 36, color: themeColor.withValues(alpha: 0.3)),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -428,16 +472,18 @@ class _LecturerHomeScreenState extends State<LecturerHomeScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4097FC),
+                        color: themeColor,
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text(s.classCode,
-                          style: const TextStyle(fontSize: 10, color: Colors.white)),
+                      child: Text(typeLabel,
+                          style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600)),
                     ),
                     const SizedBox(width: 6),
                     const Icon(Icons.location_on_outlined, size: 12, color: Colors.black45),
-                    Text(s.room ?? '-',
-                        style: const TextStyle(fontSize: 12, color: Colors.black45)),
+                    Text(
+                      (s.room != null && s.room.toString().isNotEmpty) ? s.room : '-',
+                      style: const TextStyle(fontSize: 12, color: Colors.black45),
+                    ),
                   ],
                 ),
               ],

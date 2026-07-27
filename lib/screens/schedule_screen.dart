@@ -1,11 +1,8 @@
-// schedule_screen.dart
 import 'package:flutter/material.dart';
-// Perhatikan: Kami menghapus AnnotatedRegion karena SafeArea akan menangani System UI
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/schedule_provider.dart';
 import '../models/schedule_model.dart';
-// Impor layar lain untuk navigasi di BottomNav
 import 'home_screen.dart';
 import 'chat_screen.dart';
 import 'announcement_screen.dart';
@@ -22,17 +19,13 @@ class _ScheduleScreenState extends State<ScheduleScreen>
   late TabController _tabController;
   final List<String> _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  // === VARIABEL UNTUK BOTTOM NAV ===
-  // Index 1 adalah untuk layar Kalender/Jadwal
   int _selectedNavIndex = 1;
 
   @override
   void initState() {
     super.initState();
-    // Logic TabController tetap sama
     _tabController = TabController(length: 2, vsync: this);
 
-    // Logic pemuatan data tetap sama
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final scheduleProvider = Provider.of<ScheduleProvider>(context, listen: false);
@@ -52,26 +45,15 @@ class _ScheduleScreenState extends State<ScheduleScreen>
 
   @override
   Widget build(BuildContext context) {
-    // === EDIT: GANTI WIDGET UNTUK MEWADAHI LAYOUT BARU ===
-    // Menghapus AnnotatedRegion dan menggunakan Container luar untuk Scaffold
     return Container(
-      color: const Color(0xFFEDEDED), // Warna latar belakang keseluruhan (samakan dengan Home)
+      color: const Color(0xFFEDEDED),
       child: Scaffold(
-        // === EDIT: JANGAN GUNAKAN APPBAR STANDAR ===
-        // backgroundColor: Colors.white, // Hapus warna putih standar
-        appBar: null, // Matikan AppBar standar
-
-        // === EDIT: GUNAKAN BODY UNTUK SEMUA KONTEN, TERMASUK HEADER ===
+        appBar: null,
         body: SafeArea(
           child: Column(
             children: [
-              // 1. === MEMBUAT HEADER KUSTOM (MENGGANTIKAN APPBAR) ===
               _buildCustomHeader(),
-
-              // 2. === MEMBUAT SEGMEN TAB MENU (SAMA DENGAN APPBAR.BOTTOM SEBELUMNYA) ===
               _buildTabMenuBar(),
-
-              // 3. === BAGIAN KONTEN UTAMA (TABVIEW) ===
               Expanded(
                 child: Consumer<ScheduleProvider>(
                   builder: (context, provider, _) {
@@ -92,22 +74,17 @@ class _ScheduleScreenState extends State<ScheduleScreen>
             ],
           ),
         ),
-
-        // === 4. === EDIT: MENAMBAHKAN BOTTOM NAV PANEL ===
         bottomNavigationBar: _buildBottomNav(),
       ),
     );
   }
 
-  // === WIDGET HEADER KUSTOM ===
   Widget _buildCustomHeader() {
     return Padding(
-      // Padding serasi dengan Home
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
       child: Row(
         children: [
           IconButton(
-            // Gunakan ikon 'arrow_back' atau 'chevron_left'
             icon: const Icon(Icons.arrow_back, color: Colors.black),
             onPressed: () => Navigator.pop(context),
           ),
@@ -115,8 +92,8 @@ class _ScheduleScreenState extends State<ScheduleScreen>
           const Text(
             'Class Schedule',
             style: TextStyle(
-              fontSize: 22, // Ukuran serasi dengan Home
-              fontWeight: FontWeight.bold, // Bold serasi dengan Home
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
               color: Colors.black,
             ),
           ),
@@ -125,7 +102,6 @@ class _ScheduleScreenState extends State<ScheduleScreen>
     );
   }
 
-  // === WIDGET TAB MENU BAR (DIPINDAH DARI APPBAR) ===
   Widget _buildTabMenuBar() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
@@ -147,7 +123,6 @@ class _ScheduleScreenState extends State<ScheduleScreen>
     );
   }
 
-  // === WIDGET BOTTOM NAV PANEL (SAMA DENGAN HOME/CHAT) ===
   Widget _buildBottomNav() {
     final icons = [Icons.home, Icons.calendar_month, Icons.qr_code_scanner, Icons.chat_bubble, Icons.campaign];
 
@@ -164,7 +139,6 @@ class _ScheduleScreenState extends State<ScheduleScreen>
 
           return GestureDetector(
             onTap: () {
-              // Navigasi serasi dengan layar lain
               if (index == 0) {
                 Navigator.pushAndRemoveUntil(
                   context,
@@ -172,7 +146,6 @@ class _ScheduleScreenState extends State<ScheduleScreen>
                       (route) => false,
                 );
               } else if (index == 1) {
-                // Jangan lakukan apa-apa, sudah di layar Jadwal
                 setState(() => _selectedNavIndex = 1);
               } else if (index == 3) {
                 Navigator.pushReplacement(context, PageRouteBuilder(transitionDuration: Duration.zero, reverseTransitionDuration: Duration.zero, pageBuilder: (_, __, ___) => const ChatScreen()));
@@ -189,50 +162,59 @@ class _ScheduleScreenState extends State<ScheduleScreen>
     );
   }
 
-  // ===================================================================
-  // WIDGET & LOGIC KONTEN JADWAL (TETAP SAMA, HANYA DIPINDAH POSISI)
-  // ===================================================================
-
   Widget _buildClassTab(List<ScheduleModel> schedules) {
     if (schedules.isEmpty) {
       return const Center(child: Text('No class schedule found', style: TextStyle(color: Colors.black54)));
     }
-    // Group by dayOfWeek
-    final Map<int, List<ScheduleModel>> grouped = {};
-    for (final s in schedules) {
+
+    final regularSchedules = schedules.where((s) => s.type == ScheduleType.CLASS || s.type == ScheduleType.PRACTICUM).toList();
+    final rescheduleSchedules = schedules.where((s) => s.type == ScheduleType.RESCHEDULE).toList();
+
+    final Map<int, List<ScheduleModel>> groupedByDay = {};
+    for (final s in regularSchedules) {
       if (s.dayOfWeek != null) {
-        grouped.putIfAbsent(s.dayOfWeek!, () => []).add(s);
+        groupedByDay.putIfAbsent(s.dayOfWeek!, () => []).add(s);
       }
     }
-    final sortedDays = grouped.keys.toList()..sort();
+    final sortedDays = groupedByDay.keys.toList()..sort();
 
-    return ListView.builder(
+    return ListView(
       padding: const EdgeInsets.all(20),
-      itemCount: sortedDays.length,
-      itemBuilder: (context, index) {
-        final day = sortedDays[index];
-        final daySchedules = grouped[day]!;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (index > 0) const SizedBox(height: 20),
-            Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0F0F0),
-                borderRadius: BorderRadius.circular(6),
+      children: [
+        if (rescheduleSchedules.isNotEmpty) ...[
+          const Text(
+            'Reschedule / Replacement Classes',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.orange),
+          ),
+          const SizedBox(height: 10),
+          ...rescheduleSchedules.map((s) => _buildRescheduleCard(s)),
+          const SizedBox(height: 20),
+          const Divider(),
+          const SizedBox(height: 10),
+        ],
+        ...sortedDays.map((day) {
+          final daySchedules = groupedByDay[day]!;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0F0F0),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  _days[(day - 1).clamp(0, 6)],
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black54),
+                ),
               ),
-              child: Text(
-                _days[(day - 1).clamp(0, 6)],
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black54),
-              ),
-            ),
-            ...daySchedules.map((s) => _buildClassCard(s)),
-          ],
-        );
-      },
+              ...daySchedules.map((s) => _buildClassCard(s)),
+              const SizedBox(height: 16),
+            ],
+          );
+        }),
+      ],
     );
   }
 
@@ -240,7 +222,6 @@ class _ScheduleScreenState extends State<ScheduleScreen>
     if (schedules.isEmpty) {
       return const Center(child: Text('No exam schedule found', style: TextStyle(color: Colors.black54)));
     }
-    // Group by examDate
     final Map<String, List<ScheduleModel>> grouped = {};
     for (final s in schedules) {
       if (s.examDate != null) {
@@ -290,10 +271,10 @@ class _ScheduleScreenState extends State<ScheduleScreen>
               width: 48,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween, // ✅ DIPERBAIKI (MainAxisAlignment.spaceBetween)
                 children: [
-                  Text(s.startTime.substring(0, 5), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                  Text(s.endTime.substring(0, 5), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                  Text(_cleanTime(s.startTime), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                  Text(_cleanTime(s.endTime), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
                 ],
               ),
             ),
@@ -310,16 +291,64 @@ class _ScheduleScreenState extends State<ScheduleScreen>
                   children: [
                     Text(s.courseName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
-                    _buildTag(s.type, const Color(0xFF4097FC)),
+                    _buildTag(s.type.name, const Color(0xFF4097FC)),
                     const SizedBox(height: 6),
                     Row(children: [
                       const Icon(Icons.location_on_outlined, size: 14, color: Colors.black54),
                       const SizedBox(width: 4),
-                      Text(s.room ?? '-', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                      Text(s.room.isEmpty ? '-' : s.room, style: const TextStyle(fontSize: 12, color: Colors.black54)),
                     ]),
                   ],
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRescheduleCard(ScheduleModel s) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.orange, width: 1.5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(s.courseName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                _buildTag('RESCHEDULE', Colors.orange),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'New Date: ${_formatDate(s.specificDate ?? '')}',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+            ),
+            if (s.originalDate != null)
+              Text(
+                'Replaces: ${_formatDate(s.originalDate!)}',
+                style: const TextStyle(fontSize: 11, color: Colors.redAccent),
+              ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.access_time, size: 14, color: Colors.black54),
+                const SizedBox(width: 4),
+                Text('${_cleanTime(s.startTime)} - ${_cleanTime(s.endTime)}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                const SizedBox(width: 12),
+                const Icon(Icons.location_on_outlined, size: 14, color: Colors.black54),
+                const SizedBox(width: 4),
+                Text(s.room.isEmpty ? '-' : s.room, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+              ],
             ),
           ],
         ),
@@ -338,10 +367,10 @@ class _ScheduleScreenState extends State<ScheduleScreen>
               width: 48,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween, // ✅ DIPERBAIKI (MainAxisAlignment.spaceBetween)
                 children: [
-                  Text(s.startTime.substring(0, 5), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                  Text(s.endTime.substring(0, 5), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                  Text(_cleanTime(s.startTime), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                  Text(_cleanTime(s.endTime), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
                 ],
               ),
             ),
@@ -363,7 +392,7 @@ class _ScheduleScreenState extends State<ScheduleScreen>
                     Row(children: [
                       const Icon(Icons.location_on_outlined, size: 14, color: Colors.black54),
                       const SizedBox(width: 4),
-                      Text(s.room ?? '-', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                      Text(s.room.isEmpty ? '-' : s.room, style: const TextStyle(fontSize: 12, color: Colors.black54)),
                     ]),
                   ],
                 ),
@@ -381,6 +410,13 @@ class _ScheduleScreenState extends State<ScheduleScreen>
       decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(20)),
       child: Text(label, style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w500)),
     );
+  }
+
+  String _cleanTime(String time) {
+    if (time.length >= 5) {
+      return time.substring(0, 5);
+    }
+    return time;
   }
 
   String _formatDate(String date) {

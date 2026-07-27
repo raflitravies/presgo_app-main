@@ -28,7 +28,6 @@ class _LecturerScheduleScreenState extends State<LecturerScheduleScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // 💡 WARNA BACKGROUND BIRU MUDA SESUAI GAMBAR
       backgroundColor: const Color(0xFFD6F0F5),
       body: SafeArea(
         child: Column(
@@ -52,46 +51,63 @@ class _LecturerScheduleScreenState extends State<LecturerScheduleScreen> {
                     );
                   }
 
+                  // Grouping regular schedule berdasarkan dayOfWeek
                   final Map<int, List<ScheduleModel>> grouped = {};
+                  final List<ScheduleModel> reschedules = [];
+
                   for (final s in schedules) {
-                    if (s.dayOfWeek != null) {
+                    if (s.type == ScheduleType.RESCHEDULE) {
+                      reschedules.add(s);
+                    } else if (s.dayOfWeek != null) {
                       grouped.putIfAbsent(s.dayOfWeek!, () => []).add(s);
                     }
                   }
                   final sortedDays = grouped.keys.toList()..sort();
 
-                  return ListView.builder(
+                  return ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    itemCount: sortedDays.length,
-                    itemBuilder: (context, index) {
-                      final day = sortedDays[index];
-                      final daySchedules = grouped[day]!;
+                    children: [
+                      // 1. Jika ada Jadwal Reschedule/Pengganti
+                      if (reschedules.isNotEmpty) ...[
+                        const Text(
+                          'Rescheduled Teaching Sessions',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.deepOrange),
+                        ),
+                        const SizedBox(height: 8),
+                        ...reschedules.map((s) => _buildLecturerClassCard(s)),
+                        const SizedBox(height: 16),
+                        const Divider(),
+                        const SizedBox(height: 8),
+                      ],
 
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (index > 0) const SizedBox(height: 16),
-                          // Header Hari Soft Grey Pill
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFD3D3D3).withOpacity(0.7),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              _days[(day - 1).clamp(0, 6)],
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.black54,
+                      // 2. Jadwal Mengajar Reguler Mingguan
+                      ...sortedDays.map((day) {
+                        final daySchedules = grouped[day]!;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFD3D3D3).withOpacity(0.7),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                _days[(day - 1).clamp(0, 6)],
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black54,
+                                ),
                               ),
                             ),
-                          ),
-                          ...daySchedules.map((s) => _buildLecturerClassCard(s)),
-                        ],
-                      );
-                    },
+                            ...daySchedules.map((s) => _buildLecturerClassCard(s)),
+                            const SizedBox(height: 16),
+                          ],
+                        );
+                      }),
+                    ],
                   );
                 },
               ),
@@ -130,10 +146,23 @@ class _LecturerScheduleScreenState extends State<LecturerScheduleScreen> {
     final start = s.startTime.length >= 5 ? s.startTime.substring(0, 5) : s.startTime;
     final end = s.endTime.length >= 5 ? s.endTime.substring(0, 5) : s.endTime;
 
+    final typeStr = s.type.name;
+    final isPracticum = typeStr.toLowerCase().contains('practicum');
+    final isReschedule = s.type == ScheduleType.RESCHEDULE;
+
     // Warna border & tag sesuai tipe kelas
-    final isPracticum = s.type.toLowerCase().contains('practicum');
-    final borderColor = isPracticum ? const Color(0xFFF5A623) : const Color(0xFF2551E0);
-    final tagBgColor = isPracticum ? const Color(0xFFF5A623) : const Color(0xFF7CA6FC);
+    Color borderColor = const Color(0xFF2551E0);
+    Color tagBgColor = const Color(0xFF7CA6FC);
+    String typeLabel = typeStr;
+
+    if (isPracticum) {
+      borderColor = const Color(0xFFF5A623);
+      tagBgColor = const Color(0xFFF5A623);
+    } else if (isReschedule) {
+      borderColor = Colors.orange;
+      tagBgColor = Colors.orange;
+      typeLabel = 'RESCHEDULE';
+    }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -165,7 +194,7 @@ class _LecturerScheduleScreenState extends State<LecturerScheduleScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: borderColor, width: 2), // 💡 Border Kontras Berwarna
+                  border: Border.all(color: borderColor, width: 2),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,6 +207,13 @@ class _LecturerScheduleScreenState extends State<LecturerScheduleScreen> {
                         color: Colors.black87,
                       ),
                     ),
+                    if (isReschedule && s.specificDate != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Date: ${s.specificDate}',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
@@ -186,7 +222,7 @@ class _LecturerScheduleScreenState extends State<LecturerScheduleScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        s.type,
+                        typeLabel,
                         style: const TextStyle(
                           fontSize: 11,
                           color: Colors.white,
@@ -200,7 +236,7 @@ class _LecturerScheduleScreenState extends State<LecturerScheduleScreen> {
                         const Icon(Icons.location_on_outlined, size: 14, color: Colors.black54),
                         const SizedBox(width: 4),
                         Text(
-                          s.room ?? '-',
+                          s.room.isEmpty ? '-' : s.room,
                           style: const TextStyle(fontSize: 12, color: Colors.black54),
                         ),
                       ],

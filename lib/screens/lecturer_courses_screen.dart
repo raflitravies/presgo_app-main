@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/network/api_client.dart';
 import '../providers/lecturer_attendance_provider.dart';
-import '../providers/schedule_provider.dart';
 import '../models/course_offering_model.dart';
 import '../models/schedule_model.dart';
 import '../services/schedule_service.dart';
@@ -178,6 +177,7 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
     }
   }
 
+  // ===== DIALOG SET EXAM =====
   void _showSetExamDialog() {
     DateTime? selectedDate;
     TimeOfDay? startTime;
@@ -197,7 +197,6 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Date Picker
                 GestureDetector(
                   onTap: () async {
                     final date = await showDatePicker(
@@ -232,7 +231,6 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
                   ),
                 ),
                 const SizedBox(height: 12),
-                // Start time
                 GestureDetector(
                   onTap: () async {
                     final time = await showTimePicker(
@@ -265,7 +263,6 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
                   ),
                 ),
                 const SizedBox(height: 12),
-                // End time
                 GestureDetector(
                   onTap: () async {
                     final time = await showTimePicker(
@@ -298,7 +295,6 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
                   ),
                 ),
                 const SizedBox(height: 12),
-                // Room
                 TextField(
                   controller: roomController,
                   decoration: InputDecoration(
@@ -367,10 +363,247 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
     );
   }
 
+  // ===== DIALOG RESCHEDULE CLASS =====
+  void _showRescheduleDialog() {
+    DateTime? originalDate;
+    DateTime? newDate;
+    TimeOfDay? startTime;
+    TimeOfDay? endTime;
+    final roomController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text(
+            'Reschedule Class',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Original Date (Canceled Class Date)
+                GestureDetector(
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: ctx,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime(2025),
+                      lastDate: DateTime.now().add(const Duration(days: 180)),
+                    );
+                    if (date != null) setDialogState(() => originalDate = date);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade400),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.event_busy, size: 18, color: Colors.redAccent),
+                        const SizedBox(width: 8),
+                        Text(
+                          originalDate != null
+                              ? 'Canceled: ${originalDate!.day}/${originalDate!.month}/${originalDate!.year}'
+                              : 'Original Date (Canceled)',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: originalDate != null ? Colors.black : Colors.black38,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // New Date (Replacement Date)
+                GestureDetector(
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: ctx,
+                      initialDate: DateTime.now().add(const Duration(days: 1)),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 180)),
+                    );
+                    if (date != null) setDialogState(() => newDate = date);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade400),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.event_available, size: 18, color: Colors.green),
+                        const SizedBox(width: 8),
+                        Text(
+                          newDate != null
+                              ? 'Replacement: ${newDate!.day}/${newDate!.month}/${newDate!.year}'
+                              : 'New Date (Replacement)',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: newDate != null ? Colors.black : Colors.black38,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Start time
+                GestureDetector(
+                  onTap: () async {
+                    final time = await showTimePicker(
+                      context: ctx,
+                      initialTime: const TimeOfDay(hour: 9, minute: 0),
+                    );
+                    if (time != null) setDialogState(() => startTime = time);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade400),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.access_time, size: 18, color: Colors.black54),
+                        const SizedBox(width: 8),
+                        Text(
+                          startTime != null
+                              ? '${startTime!.hour.toString().padLeft(2, '0')}:${startTime!.minute.toString().padLeft(2, '0')}'
+                              : 'Start Time',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: startTime != null ? Colors.black : Colors.black38,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // End time
+                GestureDetector(
+                  onTap: () async {
+                    final time = await showTimePicker(
+                      context: ctx,
+                      initialTime: const TimeOfDay(hour: 11, minute: 0),
+                    );
+                    if (time != null) setDialogState(() => endTime = time);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade400),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.access_time_filled, size: 18, color: Colors.black54),
+                        const SizedBox(width: 8),
+                        Text(
+                          endTime != null
+                              ? '${endTime!.hour.toString().padLeft(2, '0')}:${endTime!.minute.toString().padLeft(2, '0')}'
+                              : 'End Time',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: endTime != null ? Colors.black : Colors.black38,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Room
+                TextField(
+                  controller: roomController,
+                  decoration: InputDecoration(
+                    labelText: 'Room',
+                    prefixIcon: const Icon(Icons.location_on_outlined, size: 18),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (originalDate == null ||
+                    newDate == null ||
+                    startTime == null ||
+                    endTime == null ||
+                    roomController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please fill all fields')),
+                  );
+                  return;
+                }
+
+                Navigator.pop(ctx);
+
+                try {
+                  final origStr =
+                      '${originalDate!.year}-${originalDate!.month.toString().padLeft(2, '0')}-${originalDate!.day.toString().padLeft(2, '0')}';
+                  final newStr =
+                      '${newDate!.year}-${newDate!.month.toString().padLeft(2, '0')}-${newDate!.day.toString().padLeft(2, '0')}';
+                  final startStr =
+                      '${startTime!.hour.toString().padLeft(2, '0')}:${startTime!.minute.toString().padLeft(2, '0')}:00';
+                  final endStr =
+                      '${endTime!.hour.toString().padLeft(2, '0')}:${endTime!.minute.toString().padLeft(2, '0')}:00';
+
+                  await _scheduleService.createRescheduleSchedule(
+                    offeringId: widget.offering.id,
+                    originalDate: origStr,
+                    newDate: newStr,
+                    startTime: startStr,
+                    endTime: endStr,
+                    room: roomController.text.trim(),
+                  );
+
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Reschedule created successfully!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                  _loadSchedules();
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              child: const Text('Reschedule', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final examSchedules = _schedules.where((s) => s.type == 'EXAM').toList();
-    final classSchedules = _schedules.where((s) => s.type != 'EXAM').toList();
+    final examSchedules = _schedules.where((s) => s.type == ScheduleType.EXAM || s.type == 'EXAM').toList();
+    final classSchedules = _schedules.where((s) => s.type != ScheduleType.EXAM && s.type != 'EXAM').toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFEDEDED),
@@ -396,9 +629,14 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
         ),
         actions: [
           TextButton.icon(
+            onPressed: _showRescheduleDialog,
+            icon: const Icon(Icons.edit_calendar, size: 16, color: Colors.orange),
+            label: const Text('Reschedule', style: TextStyle(color: Colors.orange, fontSize: 12)),
+          ),
+          TextButton.icon(
             onPressed: _showSetExamDialog,
             icon: const Icon(Icons.add, size: 16, color: Color(0xFF4097FC)),
-            label: const Text('Set Exam', style: TextStyle(color: Color(0xFF4097FC), fontSize: 13)),
+            label: const Text('Set Exam', style: TextStyle(color: Color(0xFF4097FC), fontSize: 12)),
           ),
         ],
         bottom: PreferredSize(
@@ -435,17 +673,17 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (classSchedules.isNotEmpty) ...[
-                  const Text('Class Schedule',
+                  const Text('Class & Reschedule Schedule',
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black54)),
                   const SizedBox(height: 8),
-                  ...classSchedules.map((s) => _buildScheduleCard(s, isExam: false)),
+                  ...classSchedules.map((s) => _buildScheduleCard(s)),
                   const SizedBox(height: 16),
                 ],
                 if (examSchedules.isNotEmpty) ...[
                   const Text('Exam Schedule',
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black54)),
                   const SizedBox(height: 8),
-                  ...examSchedules.map((s) => _buildScheduleCard(s, isExam: true)),
+                  ...examSchedules.map((s) => _buildScheduleCard(s)),
                 ],
                 if (_schedules.isEmpty)
                   const Center(
@@ -464,8 +702,31 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
     );
   }
 
-  Widget _buildScheduleCard(ScheduleModel s, {required bool isExam}) {
-    final color = isExam ? Colors.red : const Color(0xFF4097FC);
+  Widget _buildScheduleCard(ScheduleModel s) {
+    final isExam = s.type == ScheduleType.EXAM || s.type.toString().contains('EXAM');
+    final isReschedule = s.type == ScheduleType.RESCHEDULE || s.type.toString().contains('RESCHEDULE');
+
+    Color color = const Color(0xFF4097FC);
+    IconData icon = Icons.class_;
+    String typeLabel = 'CLASS';
+
+    if (isExam) {
+      color = Colors.red;
+      icon = Icons.assignment;
+      typeLabel = 'EXAM';
+    } else if (isReschedule) {
+      color = Colors.orange;
+      icon = Icons.update;
+      typeLabel = 'RESCHEDULE';
+    }
+
+    String titleText = s.dayName ?? '-';
+    if (isExam) {
+      titleText = _formatDate(s.examDate ?? '');
+    } else if (isReschedule) {
+      titleText = 'New: ${_formatDate(s.specificDate ?? '')}';
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
@@ -482,7 +743,7 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
               color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(isExam ? Icons.assignment : Icons.class_, color: color, size: 20),
+            child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -490,23 +751,30 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isExam ? _formatDate(s.examDate ?? '') : (s.dayName ?? '-'),
+                  titleText,
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
+                if (isReschedule && s.originalDate != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Replaces: ${_formatDate(s.originalDate!)}',
+                    style: const TextStyle(fontSize: 11, color: Colors.redAccent, fontWeight: FontWeight.w500),
+                  ),
+                ],
                 const SizedBox(height: 4),
                 Row(
                   children: [
                     const Icon(Icons.access_time, size: 13, color: Colors.black45),
                     const SizedBox(width: 4),
                     Text(
-                      '${s.startTime.substring(0, 5)} - ${s.endTime.substring(0, 5)}',
+                      '${_cleanTime(s.startTime)} - ${_cleanTime(s.endTime)}',
                       style: const TextStyle(fontSize: 12, color: Colors.black54),
                     ),
-                    if (s.room != null) ...[
+                    if (s.room.isNotEmpty) ...[
                       const SizedBox(width: 10),
                       const Icon(Icons.location_on_outlined, size: 13, color: Colors.black45),
                       const SizedBox(width: 4),
-                      Text(s.room!, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                      Text(s.room, style: const TextStyle(fontSize: 12, color: Colors.black54)),
                     ],
                   ],
                 ),
@@ -520,7 +788,7 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              isExam ? 'EXAM' : s.type,
+              typeLabel,
               style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color),
             ),
           ),
@@ -614,6 +882,13 @@ class _LecturerCourseDetailScreenState extends State<LecturerCourseDetailScreen>
     } catch (e) {
       return [];
     }
+  }
+
+  String _cleanTime(String time) {
+    if (time.length >= 5) {
+      return time.substring(0, 5);
+    }
+    return time;
   }
 
   String _formatDate(String date) {

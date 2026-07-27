@@ -24,7 +24,7 @@ class HomeProvider extends ChangeNotifier {
     try {
       await Future.wait([
         _loadTranscript(),
-        _loadTodaySchedule(),
+        _loadStudentSchedules(),
       ]);
     } catch (e) {
       _errorMessage = e.toString();
@@ -37,36 +37,47 @@ class HomeProvider extends ChangeNotifier {
   Future<void> _loadTranscript() async {
     try {
       final response = await _api.get('/grades/my/transcript');
-      _transcript = TranscriptModel.fromJson(response['data']);
+      if (response['data'] != null) {
+        _transcript = TranscriptModel.fromJson(response['data']);
+      }
     } catch (e) {
       _transcript = null;
     }
   }
 
-  Future<void> _loadTodaySchedule() async {
+  // ✅ UNTUK MAHASISWA: AMBIL SEMUA JADWAL MINGGUAN & RESCHEDULE
+  Future<void> _loadStudentSchedules() async {
     try {
-      // ✅ GANTI DARI '/schedules/my/today' JADI '/schedules/my/class'
       final response = await _api.get('/schedules/my/class');
-      _todaySchedule = (response['data'] as List)
-          .map((s) => ScheduleModel.fromJson(s))
-          .toList();
+      if (response['data'] != null) {
+        _todaySchedule = (response['data'] as List)
+            .map((s) => ScheduleModel.fromJson(s as Map<String, dynamic>))
+            .toList();
+      } else {
+        _todaySchedule = [];
+      }
     } catch (e) {
       _todaySchedule = [];
     }
   }
 
+  // ✅ UNTUK DOSEN: AMBIL SEMUA JADWAL MENGAJAR & RESCHEDULE
   Future<void> loadLecturerHomeData() async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      // ✅ UNTUK DOSEN JUGA GANTI KE '/schedules/my/teaching'
       final response = await _api.get('/schedules/my/teaching');
-      _todaySchedule = (response['data'] as List)
-          .map((s) => ScheduleModel.fromJson(s))
-          .toList();
+      if (response['data'] != null) {
+        _todaySchedule = (response['data'] as List)
+            .map((s) => ScheduleModel.fromJson(s as Map<String, dynamic>))
+            .toList();
+      } else {
+        _todaySchedule = [];
+      }
     } catch (e) {
+      _errorMessage = e.toString();
       _todaySchedule = [];
     } finally {
       _isLoading = false;
