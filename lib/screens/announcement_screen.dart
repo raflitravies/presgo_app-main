@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/announcement_provider.dart';
 import '../models/announcement_model.dart';
+import 'home_screen.dart';
+import 'schedule_screen.dart';
+import 'chat_screen.dart';
 
 class AnnouncementScreen extends StatefulWidget {
   const AnnouncementScreen({Key? key}) : super(key: key);
@@ -11,6 +14,11 @@ class AnnouncementScreen extends StatefulWidget {
 }
 
 class _AnnouncementScreenState extends State<AnnouncementScreen> {
+  int _selectedNavIndex = 4; // Index untuk Announcement (Campaign Icon)
+
+  // Warna Background yang sama dengan ScheduleScreen
+  final Color _bgColor = const Color(0xFFE2F5FA);
+
   @override
   void initState() {
     super.initState();
@@ -21,47 +29,50 @@ class _AnnouncementScreenState extends State<AnnouncementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFEDEDED),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+    return Container(
+      color: _bgColor,
+      child: Scaffold(
+        backgroundColor: _bgColor,
+        appBar: AppBar(
+          backgroundColor: _bgColor,
+          elevation: 0,
+          automaticallyImplyLeading: false, // Menghapus panah back
+          title: const Text(
+            'Announcements',
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 22),
+          ),
         ),
-        title: const Text('Announcements',
-            style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
-      ),
-      body: Consumer<AnnouncementProvider>(
-        builder: (context, provider, _) {
-          if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
+        body: Consumer<AnnouncementProvider>(
+          builder: (context, provider, _) {
+            if (provider.isLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          if (provider.announcements.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.campaign_outlined, size: 64, color: Colors.black26),
-                  SizedBox(height: 16),
-                  Text('No announcements yet',
-                      style: TextStyle(color: Colors.black54, fontSize: 16)),
-                ],
-              ),
+            if (provider.announcements.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    Icon(Icons.campaign_outlined, size: 64, color: Colors.black26),
+                    SizedBox(height: 16),
+                    Text('No announcements yet',
+                        style: TextStyle(color: Colors.black54, fontSize: 16)),
+                  ],
+                ),
+              );
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: provider.announcements.length,
+              itemBuilder: (context, index) {
+                final a = provider.announcements[index];
+                return _buildAnnouncementCard(a);
+              },
             );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: provider.announcements.length,
-            itemBuilder: (context, index) {
-              final a = provider.announcements[index];
-              return _buildAnnouncementCard(a);
-            },
-          );
-        },
+          },
+        ),
+        bottomNavigationBar: _buildBottomNav(),
       ),
     );
   }
@@ -80,7 +91,13 @@ class _AnnouncementScreenState extends State<AnnouncementScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(blurRadius: 8, color: Colors.black.withOpacity(0.05), offset: const Offset(0, 2))],
+          boxShadow: [
+            BoxShadow(
+              blurRadius: 8,
+              color: Colors.black.withOpacity(0.05),
+              offset: const Offset(0, 2),
+            )
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -141,6 +158,63 @@ class _AnnouncementScreenState extends State<AnnouncementScreen> {
     );
   }
 
+  Widget _buildBottomNav() {
+    final icons = [Icons.home, Icons.calendar_month, Icons.qr_code_scanner, Icons.chat_bubble, Icons.campaign];
+
+    return Container(
+      height: 65,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, -2))],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: List.generate(icons.length, (index) {
+          final selected = _selectedNavIndex == index;
+
+          return GestureDetector(
+            onTap: () {
+              if (index == 0) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  PageRouteBuilder(
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: Duration.zero,
+                    pageBuilder: (_, __, ___) => const HomeScreen(),
+                  ),
+                      (route) => false,
+                );
+              } else if (index == 1) {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: Duration.zero,
+                    pageBuilder: (_, __, ___) => const ScheduleScreen(),
+                  ),
+                );
+              } else if (index == 3) {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: Duration.zero,
+                    pageBuilder: (_, __, ___) => const ChatScreen(),
+                  ),
+                );
+              } else if (index == 4) {
+                setState(() => _selectedNavIndex = 4);
+              } else {
+                setState(() => _selectedNavIndex = index);
+              }
+            },
+            child: Icon(icons[index], color: selected ? const Color(0xFF4097FC) : Colors.black54),
+          );
+        }),
+      ),
+    );
+  }
+
   Color _getCategoryColor(String? category) {
     switch (category) {
       case 'ACADEMIC':
@@ -157,8 +231,7 @@ class _AnnouncementScreenState extends State<AnnouncementScreen> {
   String _formatDate(String dateTimeStr) {
     try {
       final dt = DateTime.parse(dateTimeStr);
-      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
     } catch (_) {
       return dateTimeStr;
@@ -187,15 +260,13 @@ class AnnouncementDetailScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Announcement',
-            style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
+        title: const Text('Announcement', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Category & date
             Row(
               children: [
                 if (announcement.category != null)
@@ -220,13 +291,11 @@ class AnnouncementDetailScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            // Title
             Text(
               announcement.title,
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
             ),
             const SizedBox(height: 8),
-            // Author
             if (announcement.createdByName != null)
               Row(
                 children: [
@@ -241,7 +310,6 @@ class AnnouncementDetailScreen extends StatelessWidget {
             const SizedBox(height: 20),
             const Divider(),
             const SizedBox(height: 16),
-            // Content
             Text(
               announcement.content,
               style: const TextStyle(fontSize: 15, color: Colors.black87, height: 1.6),
@@ -289,8 +357,7 @@ class AnnouncementDetailScreen extends StatelessWidget {
   String _formatDate(String dateTimeStr) {
     try {
       final dt = DateTime.parse(dateTimeStr);
-      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
     } catch (_) {
       return dateTimeStr;

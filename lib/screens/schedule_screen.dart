@@ -21,10 +21,19 @@ class _ScheduleScreenState extends State<ScheduleScreen>
 
   int _selectedNavIndex = 1;
 
+  // Warna Background dari Gambar Acuan
+  final Color _bgColor = const Color(0xFFE2F5FA);
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+      }
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -46,8 +55,9 @@ class _ScheduleScreenState extends State<ScheduleScreen>
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFEDEDED),
+      color: _bgColor,
       child: Scaffold(
+        backgroundColor: _bgColor,
         appBar: null,
         body: SafeArea(
           child: Column(
@@ -80,16 +90,11 @@ class _ScheduleScreenState extends State<ScheduleScreen>
   }
 
   Widget _buildCustomHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 16),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black),
-            onPressed: () => Navigator.pop(context),
-          ),
-          const SizedBox(width: 8),
-          const Text(
+          Text(
             'Class Schedule',
             style: TextStyle(
               fontSize: 22,
@@ -103,22 +108,54 @@ class _ScheduleScreenState extends State<ScheduleScreen>
   }
 
   Widget _buildTabMenuBar() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0F0F0),
-        borderRadius: BorderRadius.circular(25),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 8),
+      child: Row(
+        children: [
+          Expanded(child: _buildCapsuleTab(index: 0, label: 'Class')),
+          const SizedBox(width: 12),
+          Expanded(child: _buildCapsuleTab(index: 1, label: 'Exam')),
+        ],
       ),
-      child: TabBar(
-        controller: _tabController,
-        indicator: BoxDecoration(
-          color: const Color(0xFF4097FC),
-          borderRadius: BorderRadius.circular(25),
+    );
+  }
+
+  Widget _buildCapsuleTab({required int index, required String label}) {
+    final isSelected = _tabController.index == index;
+    return GestureDetector(
+      onTap: () {
+        _tabController.animateTo(index);
+        setState(() {});
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF3352C4) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF3352C4) : const Color(0xFFD0D0D0),
+            width: 1,
+          ),
+          boxShadow: isSelected
+              ? [
+            BoxShadow(
+              color: const Color(0xFF3352C4).withAlpha(60),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            )
+          ]
+              : [],
         ),
-        labelColor: Colors.white,
-        unselectedLabelColor: Colors.black54,
-        labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-        tabs: const [Tab(text: 'Class'), Tab(text: 'Exam')],
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: isSelected ? Colors.white : Colors.black87,
+          ),
+        ),
       ),
     );
   }
@@ -168,7 +205,23 @@ class _ScheduleScreenState extends State<ScheduleScreen>
     }
 
     final regularSchedules = schedules.where((s) => s.type == ScheduleType.CLASS || s.type == ScheduleType.PRACTICUM).toList();
-    final rescheduleSchedules = schedules.where((s) => s.type == ScheduleType.RESCHEDULE).toList();
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    final rescheduleSchedules = schedules.where((s) {
+      final isReschedule = s.type == ScheduleType.RESCHEDULE || s.type.toString().contains('RESCHEDULE');
+      if (!isReschedule) return false;
+
+      if (s.specificDate != null && s.specificDate!.isNotEmpty) {
+        final resDate = DateTime.tryParse(s.specificDate!);
+        if (resDate != null) {
+          final resDateOnly = DateTime(resDate.year, resDate.month, resDate.day);
+          return resDateOnly.isAfter(today) || resDateOnly.isAtSameMomentAs(today);
+        }
+      }
+      return false;
+    }).toList();
 
     final Map<int, List<ScheduleModel>> groupedByDay = {};
     for (final s in regularSchedules) {
@@ -201,7 +254,7 @@ class _ScheduleScreenState extends State<ScheduleScreen>
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF0F0F0),
+                  color: const Color(0xFFD9D9D9),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -245,7 +298,7 @@ class _ScheduleScreenState extends State<ScheduleScreen>
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFFF0F0F0),
+                color: const Color(0xFFD9D9D9),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
@@ -271,7 +324,7 @@ class _ScheduleScreenState extends State<ScheduleScreen>
               width: 48,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween, // ✅ DIPERBAIKI (MainAxisAlignment.spaceBetween)
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(_cleanTime(s.startTime), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
                   Text(_cleanTime(s.endTime), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
@@ -367,7 +420,7 @@ class _ScheduleScreenState extends State<ScheduleScreen>
               width: 48,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween, // ✅ DIPERBAIKI (MainAxisAlignment.spaceBetween)
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(_cleanTime(s.startTime), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
                   Text(_cleanTime(s.endTime), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
