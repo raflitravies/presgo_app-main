@@ -6,6 +6,7 @@ import '../models/schedule_model.dart';
 import 'home_screen.dart';
 import 'chat_screen.dart';
 import 'announcement_screen.dart';
+import 'course_detail_screen.dart';
 
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({Key? key}) : super(key: key);
@@ -21,7 +22,6 @@ class _ScheduleScreenState extends State<ScheduleScreen>
 
   int _selectedNavIndex = 1;
 
-  // Warna Background dari Gambar Acuan
   final Color _bgColor = const Color(0xFFE2F5FA);
 
   @override
@@ -314,96 +314,116 @@ class _ScheduleScreenState extends State<ScheduleScreen>
   }
 
   Widget _buildClassCard(ScheduleModel s) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SizedBox(
-              width: 48,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(_cleanTime(s.startTime), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                  Text(_cleanTime(s.endTime), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF4097FC), width: 1.5),
-                ),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CourseDetailScreen(schedule: s),
+          ),
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                width: 48,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(s.courseName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 6),
-                    _buildTag(s.type.name, const Color(0xFF4097FC)),
-                    const SizedBox(height: 6),
-                    Row(children: [
-                      const Icon(Icons.location_on_outlined, size: 14, color: Colors.black54),
-                      const SizedBox(width: 4),
-                      Text(s.room.isEmpty ? '-' : s.room, style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                    ]),
+                    Text(_cleanTime(s.startTime), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                    Text(_cleanTime(s.endTime), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
                   ],
                 ),
               ),
-            ),
-          ],
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF4097FC), width: 1.5),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(s.courseName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 6),
+                      _buildTag(s.type.name, const Color(0xFF4097FC)),
+                      const SizedBox(height: 6),
+                      Row(children: [
+                        const Icon(Icons.location_on_outlined, size: 14, color: Colors.black54),
+                        const SizedBox(width: 4),
+                        Text(s.room.isEmpty ? '-' : s.room, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                      ]),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildRescheduleCard(ScheduleModel s) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.orange, width: 1.5),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(s.courseName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                _buildTag('RESCHEDULE', Colors.orange),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'New Date: ${_formatDate(s.specificDate ?? '')}',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
-            ),
-            if (s.originalDate != null)
-              Text(
-                'Replaces: ${_formatDate(s.originalDate!)}',
-                style: const TextStyle(fontSize: 11, color: Colors.redAccent),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CourseDetailScreen(schedule: s),
+          ),
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.orange, width: 1.5),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(s.courseName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  _buildTag('RESCHEDULE', Colors.orange),
+                ],
               ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                const Icon(Icons.access_time, size: 14, color: Colors.black54),
-                const SizedBox(width: 4),
-                Text('${_cleanTime(s.startTime)} - ${_cleanTime(s.endTime)}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                const SizedBox(width: 12),
-                const Icon(Icons.location_on_outlined, size: 14, color: Colors.black54),
-                const SizedBox(width: 4),
-                Text(s.room.isEmpty ? '-' : s.room, style: const TextStyle(fontSize: 12, color: Colors.black54)),
-              ],
-            ),
-          ],
+              const SizedBox(height: 6),
+              Text(
+                'New Date: ${_formatDate(s.specificDate ?? '')}',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+              ),
+              if (s.originalDate != null)
+                Text(
+                  'Replaces: ${_formatDate(s.originalDate!)}',
+                  style: const TextStyle(fontSize: 11, color: Colors.redAccent),
+                ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(Icons.access_time, size: 14, color: Colors.black54),
+                  const SizedBox(width: 4),
+                  Text('${_cleanTime(s.startTime)} - ${_cleanTime(s.endTime)}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                  const SizedBox(width: 12),
+                  const Icon(Icons.location_on_outlined, size: 14, color: Colors.black54),
+                  const SizedBox(width: 4),
+                  Text(s.room.isEmpty ? '-' : s.room, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

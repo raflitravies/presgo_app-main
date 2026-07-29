@@ -16,6 +16,7 @@ class ScheduleModel {
   final String startTime;
   final String endTime;
   final String room;
+  final int credit;
 
   ScheduleModel({
     required this.id,
@@ -33,6 +34,7 @@ class ScheduleModel {
     required this.startTime,
     required this.endTime,
     required this.room,
+    this.credit = 3,
   });
 
   factory ScheduleModel.fromJson(Map<String, dynamic> json) {
@@ -40,6 +42,14 @@ class ScheduleModel {
     final rawDay = json['dayOfWeek'] ?? json['day_of_week'] ?? json['day'];
     if (rawDay != null) {
       parsedDayOfWeek = rawDay is int ? rawDay : int.tryParse(rawDay.toString());
+    }
+
+    int parsedCredit = 3;
+    final rawCredit = json['credit'] ?? json['credits'] ?? json['sks'];
+    if (rawCredit != null) {
+      parsedCredit = rawCredit is int
+          ? rawCredit
+          : int.tryParse(rawCredit.toString()) ?? 3;
     }
 
     return ScheduleModel(
@@ -50,7 +60,7 @@ class ScheduleModel {
       courseCode: json['courseCode'] ?? json['course_code'] ?? '',
       courseName: json['courseName'] ?? json['course_name'] ?? json['subject'] ?? '',
       classCode: json['classCode'] ?? json['class_code'] ?? '',
-      lecturerName: json['lecturerName'] ?? json['lecturer_name'] ?? '',
+      lecturerName: json['lecturerName'] ?? json['lecturer_name'] ?? json['lecturer'] ?? '',
       type: ScheduleType.values.firstWhere(
             (e) => e.name.toLowerCase() == (json['type'] ?? '').toString().toLowerCase(),
         orElse: () => ScheduleType.CLASS,
@@ -63,6 +73,7 @@ class ScheduleModel {
       startTime: _formatTime(json['startTime'] ?? json['start_time']),
       endTime: _formatTime(json['endTime'] ?? json['end_time']),
       room: json['room'] ?? json['room_name'] ?? '',
+      credit: parsedCredit,
     );
   }
 
@@ -83,6 +94,7 @@ class ScheduleModel {
       'startTime': startTime,
       'endTime': endTime,
       'room': room,
+      'credit': credit,
     };
   }
 
