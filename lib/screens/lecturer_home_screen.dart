@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
+import '../models/schedule_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/home_provider.dart';
-import '../models/schedule_model.dart';
-import 'profile_screen.dart';
-import 'lecturer_courses_screen.dart';
-import 'lecturer_attendance_screen.dart';
 import 'lecturer_advisees_screen.dart';
 import 'lecturer_announcement_screen.dart';
+import 'lecturer_attendance_screen.dart';
 import 'lecturer_chat_screen.dart';
+import 'lecturer_courses_screen.dart';
+import 'lecturer_grades_screen.dart';
 import 'lecturer_schedule_screen.dart';
+import 'profile_screen.dart';
 
 class LecturerHomeScreen extends StatefulWidget {
   const LecturerHomeScreen({Key? key}) : super(key: key);
@@ -30,6 +32,38 @@ class _LecturerHomeScreenState extends State<LecturerHomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<HomeProvider>(context, listen: false).loadLecturerHomeData();
     });
+  }
+
+  // Helper untuk mendapatkan jumlah kelas khusus HARI INI
+  int _getTodayClassesCount(List<ScheduleModel> allSchedules) {
+    final now = DateTime.now();
+    final todayStr = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+    final todayClasses = allSchedules.where((s) {
+      final isReschedule = s.type == ScheduleType.RESCHEDULE || s.type.toString().contains('RESCHEDULE');
+      final isExam = s.type == ScheduleType.EXAM || s.type.toString().contains('EXAM');
+
+      if (isReschedule) {
+        return s.specificDate == todayStr;
+      }
+
+      if (isExam) {
+        return s.examDate == todayStr;
+      }
+
+      if (s.dayOfWeek == now.weekday) {
+        bool isCancelled = allSchedules.any((other) =>
+        (other.type == ScheduleType.RESCHEDULE || other.type.toString().contains('RESCHEDULE')) &&
+            other.offeringId == s.offeringId &&
+            other.originalDate == todayStr);
+
+        return !isCancelled;
+      }
+
+      return false;
+    }).toList();
+
+    return todayClasses.length;
   }
 
   @override
@@ -67,6 +101,11 @@ class _LecturerHomeScreenState extends State<LecturerHomeScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
     final homeProvider = Provider.of<HomeProvider>(context);
     final user = authProvider.user;
+
+    final todayCount = _getTodayClassesCount(homeProvider.todaySchedule);
+
+    // Hitung jumlah Mata Kuliah unik yang diampu dosen
+    final coursesCount = homeProvider.todaySchedule.map((s) => s.offeringId).toSet().length;
 
     return Stack(
       clipBehavior: Clip.none,
@@ -137,7 +176,7 @@ class _LecturerHomeScreenState extends State<LecturerHomeScreen> {
               children: [
                 _buildStatItem(
                   Icons.calendar_today,
-                  homeProvider.todaySchedule.length.toString(),
+                  todayCount.toString(),
                   "Today's Classes",
                 ),
                 Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.3)),
@@ -149,7 +188,7 @@ class _LecturerHomeScreenState extends State<LecturerHomeScreen> {
                 Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.3)),
                 _buildStatItem(
                   Icons.assignment_outlined,
-                  '-',
+                  coursesCount.toString(),
                   'Courses',
                 ),
               ],
@@ -246,6 +285,13 @@ class _LecturerHomeScreenState extends State<LecturerHomeScreen> {
           transitionDuration: Duration.zero,
           reverseTransitionDuration: Duration.zero,
           pageBuilder: (_, __, ___) => const LecturerAttendanceScreen(),
+        ));
+        break;
+      case 'Grades':
+        Navigator.push(context, PageRouteBuilder(
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+          pageBuilder: (_, __, ___) => const LecturerGradesScreen(),
         ));
         break;
       case 'Advisees':
@@ -361,24 +407,20 @@ class _LecturerHomeScreenState extends State<LecturerHomeScreen> {
     final formattedDate = "${_selectedDate.day} ${monthNames[_selectedDate.month - 1]}";
     final titleText = isTodaySelected ? "Schedule on today" : "Schedule on $formattedDate";
 
-    // Standardize string format: "YYYY-MM-DD"
     final selectedDateStr = "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
 
     final filteredSchedules = allSchedules.where((s) {
       final isReschedule = s.type == ScheduleType.RESCHEDULE || s.type.toString().contains('RESCHEDULE');
       final isExam = s.type == ScheduleType.EXAM || s.type.toString().contains('EXAM');
 
-      // 1. Jika jadwal RESCHEDULE -> Cek tanggal spesifiknya
       if (isReschedule) {
         return s.specificDate == selectedDateStr;
       }
 
-      // 2. Jika jadwal EXAM -> Cek tanggal ujiannya
       if (isExam) {
         return s.examDate == selectedDateStr;
       }
 
-      // 3. Jika jadwal REGULER -> Cek hari, pastikan tidak dibatalkan oleh reschedule di tanggal ini
       if (s.dayOfWeek == _selectedDate.weekday) {
         bool isCancelled = allSchedules.any((other) =>
         (other.type == ScheduleType.RESCHEDULE || other.type.toString().contains('RESCHEDULE')) &&
@@ -464,8 +506,7 @@ class _LecturerHomeScreenState extends State<LecturerHomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(s.courseName,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                Text(s.courseName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 4),
                 Row(
                   children: [

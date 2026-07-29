@@ -120,16 +120,11 @@ class _LecturerScheduleScreenState extends State<LecturerScheduleScreen> {
   }
 
   Widget _buildCustomHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 16, 20, 8),
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black),
-            onPressed: () => Navigator.pop(context),
-          ),
-          const SizedBox(width: 4),
-          const Text(
+          Text(
             'Teaching Schedule',
             style: TextStyle(
               fontSize: 22,
